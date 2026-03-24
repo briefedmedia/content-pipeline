@@ -7,7 +7,10 @@
       "Bash(python \"C:\\\\Users\\\\micah\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\b0b0a69e-a95c-46c1-8c04-d8ea2279d779\\\\0f318abb-a743-4040-baed-f8618605cf19\\\\skills\\\\docx\\\\scripts\\\\office\\\\unpack.py\" \"C:\\\\Users\\\\micah\\\\Downloads\\\\pipeline_guide_v5_1.docx\" \"/tmp/pipeline_guide_unpacked/\")",
       "Bash(python -c \":*)",
       "Bash(gh pr:*)",
-      "Bash(where gh:*)"
+      "Bash(where gh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
