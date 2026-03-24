@@ -1,6 +1,14 @@
 # config.py -- change this ONE LINE to switch generators globally
 VIDEO_GENERATOR = "pika"   # options: "pika" or "runway"
 
+import tempfile
+import os
+
+# Cross-platform temp directory
+# Returns C:\Users\...\AppData\Local\Temp on Windows
+# Returns /tmp on Linux (Railway)
+TMP = tempfile.gettempdir()
+
 # Per-account override -- wins over global setting
 VIDEO_GENERATOR_OVERRIDE = {
     "history": "runway",   # cinematic quality worth the cost

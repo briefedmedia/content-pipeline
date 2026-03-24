@@ -1,6 +1,7 @@
 # assemble.py -- produces clean MP4, captioned MP4, and silent preview
 import subprocess, os, json, datetime
 from drive import upload_file
+from config import TMP
 
 def get_audio_duration(path):
     result = subprocess.run([
@@ -8,7 +9,9 @@ def get_audio_duration(path):
         capture_output=True, text=True)
     return float(json.loads(result.stdout)["streams"][0]["duration"])
 
-def create_clip_list(clip_paths, list_file="/tmp/clips.txt"):
+def create_clip_list(clip_paths, list_file=None):
+    if list_file is None:
+        list_file = os.path.join(TMP, "clips.txt")
     with open(list_file, "w") as f:
         for clip in clip_paths:
             f.write(f"file '{clip['path']}'\n")
@@ -19,16 +22,16 @@ def _build_base(clip_paths, audio_path, music_path, today):
     audio_duration = get_audio_duration(audio_path)
     print(f"Audio: {audio_duration:.1f}s -- video will match exactly")
     # Concatenate clips
-    concat = f"/tmp/concat_{today}.mp4"
+    concat = os.path.join(TMP, f"concat_{today}.mp4")
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0",
                     "-i", list_file, "-c", "copy", concat], check=True)
     # Trim to audio duration
-    trimmed = f"/tmp/trimmed_{today}.mp4"
+    trimmed = os.path.join(TMP, f"trimmed_{today}.mp4")
     subprocess.run(["ffmpeg", "-y", "-i", concat,
                     "-t", str(audio_duration), "-c", "copy", trimmed], check=True)
     # Mix audio + optional music at 12% volume
     if music_path:
-        mixed = f"/tmp/mixed_{today}.aac"
+        mixed = os.path.join(TMP, f"mixed_{today}.aac")
         subprocess.run(["ffmpeg", "-y", "-i", audio_path, "-i", music_path,
             "-filter_complex",
             "[0:a]volume=1.0[vo];[1:a]volume=0.12[bg];[vo][bg]amix=inputs=2:duration=first[out]",
@@ -58,7 +61,7 @@ def assemble_silent_preview(clip_paths, title):
     """Silent rough cut for VO recording reference. No audio, no captions."""
     today = datetime.date.today().isoformat()
     list_file = create_clip_list(clip_paths)
-    output = f"/tmp/preview_{today}.mp4"
+    output = os.path.join(TMP, f"preview_{today}.mp4")
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0",
         "-i", list_file,
         "-vf", SCALE,
@@ -71,12 +74,12 @@ def assemble_video(clip_paths, audio_path, srt_path, title,
     today = datetime.date.today().isoformat()
     trimmed, final_audio, duration = _build_base(clip_paths, audio_path, music_path, today)
     # Clean MP4 (TikTok + YouTube)
-    clean = f"/tmp/final_clean_{today}.mp4"
+    clean = os.path.join(TMP, f"final_clean_{today}.mp4")
     _encode(trimmed, final_audio, SCALE, clean)
     clean_id = upload_file(clean, "final", f"final_clean_{today}.mp4")
     print(f"Clean MP4: {get_audio_duration(clean):.1f}s saved")
     # Captioned MP4 (Instagram)
-    captioned = f"/tmp/final_captioned_{today}.mp4"
+    captioned = os.path.join(TMP, f"final_captioned_{today}.mp4")
     _encode(trimmed, final_audio, CAPTION_FILTER(srt_path), captioned)
     captioned_id = upload_file(captioned, "final", f"final_captioned_{today}.mp4")
     print(f"Captioned MP4: {get_audio_duration(captioned):.1f}s saved")

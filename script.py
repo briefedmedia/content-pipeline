@@ -1,6 +1,7 @@
 # script.py -- four-call pipeline with word count validation
-import anthropic, json, datetime
+import anthropic, json, datetime, os
 from drive import upload_file
+from config import TMP
 
 client = anthropic.Anthropic()
 
@@ -154,11 +155,11 @@ def run_scripting(candidates, account_type="history"):
     script_data = quality_check(script_data)
     today = datetime.date.today().isoformat()
     filename = f"script_{today}_{account_type}.json"
-    with open(f"/tmp/{filename}", "w") as f:
+    with open(os.path.join(TMP, filename), "w") as f:
         json.dump(script_data, f, indent=2)
-    fid = upload_file(f"/tmp/{filename}", "scripts", filename)
+    fid = upload_file(os.path.join(TMP, filename), "scripts", filename)
     # Also save plain text for easy phone reading
-    txt = f"/tmp/script_{today}_{account_type}.txt"
+    txt = os.path.join(TMP, f"script_{today}_{account_type}.txt")
     with open(txt, "w") as f:
         f.write(f"{script_data['title']}\n\n{script_data['script']}")
     upload_file(txt, "scripts")
