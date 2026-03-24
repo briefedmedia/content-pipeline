@@ -82,7 +82,7 @@ def validate_word_count(script_text):
 
 def select_story(candidates):
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514", max_tokens=500,
+        model="claude-sonnet-4-6", max_tokens=500,
         system=SELECTOR_PROMPT,
         messages=[{"role":"user","content":json.dumps(candidates)}])
     return json.loads(msg.content[0].text)
@@ -90,7 +90,7 @@ def select_story(candidates):
 def write_script(story, account_type="history"):
     prompt = HISTORY_SCRIPT_PROMPT if account_type == "history" else NEWS_SCRIPT_PROMPT
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514", max_tokens=1500,
+        model="claude-sonnet-4-6", max_tokens=1500,
         system=prompt,
         messages=[{"role":"user","content":json.dumps(story)}])
     result = json.loads(msg.content[0].text)
@@ -100,7 +100,7 @@ def write_script(story, account_type="history"):
 def audit_bias(script_data, max_retries=3):
     for i in range(max_retries):
         msg = client.messages.create(
-            model="claude-sonnet-4-20250514", max_tokens=1500,
+            model="claude-sonnet-4-6", max_tokens=1500,
             system=BIAS_AUDIT_PROMPT,
             messages=[{"role":"user","content":script_data["script"]}])
         audit = json.loads(msg.content[0].text)
@@ -112,7 +112,7 @@ def audit_bias(script_data, max_retries=3):
 def quality_check(script_data, max_retries=2):
     for i in range(max_retries):
         msg = client.messages.create(
-            model="claude-sonnet-4-20250514", max_tokens=1500,
+            model="claude-sonnet-4-6", max_tokens=1500,
             system=QUALITY_CHECK_PROMPT,
             messages=[{"role":"user","content":script_data["script"]}])
         result = json.loads(msg.content[0].text)
@@ -136,7 +136,7 @@ def check_for_breaking(story, account_type="news"):
     Be conservative. Reserve urgent for genuine inflection points.
     Return JSON: {"breaking": true/false, "urgency": 1-10, "reason": "..."}"""
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514", max_tokens=300,
+        model="claude-sonnet-4-6", max_tokens=300,
         system=BREAKING_PROMPT,
         messages=[{"role":"user","content":json.dumps(story)}])
     result = json.loads(msg.content[0].text)

@@ -16,7 +16,7 @@ from config import get_generator
 load_dotenv()
 
 # Runway setup
-RUNWAY_API_KEY = os.getenv('key_50b7e8f037b27191b5636f0f44d4e0ade78bbe8b77b64018779ab287dad3b15d3d9114872dc420f643fd7590a5fffebfb9691d2faeda62839939acd4fe8de64a')
+RUNWAY_API_KEY = os.getenv('RUNWAY_API_KEY')
 RUNWAY_BASE    = 'https://api.dev.runwayml.com/v1'
 
 # fal.ai / Pika setup

@@ -1,6 +1,6 @@
 # publish.py -- routes clean vs captioned per CAPTION_MODE config
 import os
-from config import CAPTION_MODE, get_next_optimal_time
+from config import CAPTION_MODE, get_next_optimal_time, AUTO_PUBLISH
 from tiktok_publish    import upload_to_tiktok
 from youtube_publish   import upload_to_youtube
 from instagram_publish import upload_to_instagram
