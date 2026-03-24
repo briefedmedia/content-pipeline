@@ -11,24 +11,92 @@ from publish  import publish_all
 from sheets   import log_job, save_todays_script, load_todays_script, load_todays_clips, save_todays_clips
 from notify   import send_notification
 
-def run_phase1(account_type="history"):
-    """Script generation. Runs on schedule or when scanner threshold is met."""
-    job = {"phase": "1", "account": account_type}
-    try:
-        candidates = run_scan()
-        script_data, fid = run_scripting(candidates, account_type)
-        save_todays_script(script_data, account_type)
-        job.update({"title": script_data["title"], "status": "success"})
-        send_notification(
-            title   = f"Script ready: {script_data['title']}",
-            message = (f"{script_data['script'][:300]}...\n\n"
-                       "Visuals generating now (~2hrs).\n"
-                       "Will notify when preview is ready to watch."),
-            priority = "normal")
-    except Exception:
-        job.update({"status": "error", "error": traceback.format_exc()})
-    finally:
-        log_job(account_type, "phase1", status=job.get("status", "error"))
+def run_phase1(account_type="news"):
+    """
+    Phase 1 -- discovery only.
+    Saves candidates to Drive and sends Pushover approval notification.
+    Does NOT proceed to scripting -- waits for manual approval via tap links.
+    Auto-selects story #1 after 2 hours if no response.
+    """
+    from discover import run_discovery
+    from notify   import notify_stories_ready
+    from config   import MIN_EXPLAINABILITY_SCORE
+    import os, datetime
+
+    candidates = run_discovery()
+
+    qualified = [
+        c for c in candidates
+        if c.get("historical_context") and
+        c["historical_context"].get("explainability_score", 0) >= MIN_EXPLAINABILITY_SCORE
+    ]
+
+    today      = datetime.date.today().isoformat()
+    server_url = os.getenv("SERVER_URL", "https://your-app.railway.app")
+
+    notify_stories_ready(
+        candidates          = qualified,
+        date                = today,
+        server_url          = server_url,
+        auto_select_minutes = 120,
+    )
+
+    print(f"Phase 1 complete. {len(qualified)} stories sent for approval.")
+    print(f"Auto-selects story #1 in 2 hours if no response.")
+    log_job({"phase": "1", "status": "success", "candidates": len(qualified)})
+
+
+def run_phase2_for_story(date, story_index, account_type="news"):
+    """
+    Phase 2 for a single approved story.
+    Called by pipeline_api.py when approval tap link is hit.
+    Runs: script generation + image generation + clip generation + silent preview.
+    Sends Pushover notification when preview is ready for VO recording.
+    """
+    import json, os
+    from script   import run_scripting
+    from images   import run_image_generation
+    from clips    import run_clip_generation
+    from assemble import assemble_silent_preview
+    from drive    import upload_file
+    from notify   import notify_preview_ready
+    from config   import TMP, MIN_EXPLAINABILITY_SCORE
+
+    candidates_path = os.path.join(TMP, f"candidates_{date}.json")
+    with open(candidates_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    candidates = data["candidates"]
+
+    qualified = [
+        c for c in candidates
+        if c.get("historical_context") and
+        c["historical_context"].get("explainability_score", 0) >= MIN_EXPLAINABILITY_SCORE
+    ]
+
+    if story_index >= len(qualified):
+        print(f"Story index {story_index} out of range ({len(qualified)} qualified)")
+        return
+
+    story            = qualified[story_index]
+    script_data, fid = run_scripting([story], account_type)
+
+    style       = "history_old" if account_type == "history" else "news"
+    image_paths = run_image_generation(script_data, style)
+    clip_paths  = run_clip_generation(image_paths, account_type)
+
+    preview_path = assemble_silent_preview(clip_paths, script_data["title"])
+    upload_file(preview_path, "previews")
+
+    notify_preview_ready(script_data["title"], account_type)
+
+    log_job({
+        "phase":        "2",
+        "status":       "success",
+        "title":        script_data["title"],
+        "story_index":  story_index,
+        "account_type": account_type,
+    })
 
 def run_phase2(account_type="history"):
     """Images + clips + silent preview. Runs immediately after Phase 1."""

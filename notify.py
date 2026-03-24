@@ -157,3 +157,32 @@ def notify_error(phase, account_type, error_summary):
         ),
         priority = "normal"
     )
+
+
+def notify_stories_ready(candidates, date, server_url, auto_select_minutes=120):
+    """
+    Send Pushover notification with all qualified stories and approval links.
+    Called at end of Phase 1 after discover.py completes.
+    """
+    lines = [f"Today's top stories -- tap to approve:\n"]
+
+    for i, s in enumerate(candidates):
+        score = 0
+        hook  = ""
+        if s.get("historical_context"):
+            score = s["historical_context"].get("explainability_score", 0)
+            hook  = s["historical_context"].get("suggested_hook", "")[:80]
+
+        approve_url = f"{server_url}/approve/{date}/{i}"
+        lines.append(f"{i+1}. [{score}/10] {s['title'][:60]}")
+        if hook:
+            lines.append(f"   Hook: {hook}...")
+        lines.append(f"   APPROVE: {approve_url}\n")
+
+    lines.append(f"Auto-selects story #1 in {auto_select_minutes} mins if no response.")
+
+    send_notification(
+        title    = f"Briefed stories ready -- {len(candidates)} candidates",
+        message  = "\n".join(lines),
+        priority = "normal"
+    )

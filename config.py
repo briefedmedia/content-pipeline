@@ -1,3 +1,10 @@
+import tempfile
+import os
+import datetime
+
+TMP = tempfile.gettempdir()
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
 # config.py -- change this ONE LINE to switch generators globally
 VIDEO_GENERATOR = "pika"   # options: "pika" or "runway"
 
@@ -88,3 +95,7 @@ AUTO_PUBLISH = {
     "youtube":   False,
     "instagram": False,
 }
+# Minimum explainability score to qualify for video production
+# Stories scoring below this are filtered out and replaced with next candidate
+# Scale: 1-10. 6 = has meaningful historical context. Raise to 7 as quality bar increases.
+MIN_EXPLAINABILITY_SCORE = 6
