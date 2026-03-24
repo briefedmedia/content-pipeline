@@ -10,7 +10,7 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 SERVICE_ACCOUNT_FILE = "service_account.json"
 
 FOLDERS = {
-    "stories":   "1-fR7hpfyl6HMCVORNHZv4n2G-IrzbcG-",
+    "stories":   "1ZuCmxYRmYQwbMoMTIIqntvc0zMAd6aqa",
     "scripts":   "1xRupya1ro5tKjM9ef-dkQbrgbappcZ34",
     "images":    "167MQM-kopCJpZ38VPvFdq34Fgck6iyco",
     "clips":     "1mfJFxqHKYs34yTlGZxvBaFm_981tA9OS",
@@ -97,3 +97,11 @@ def delete_file(file_id):
     service = get_service()
     service.files().delete(fileId=file_id).execute()
     print("Deleted:", file_id)
+
+if __name__ == "__main__":
+    import tempfile, os
+    tmp = os.path.join(tempfile.gettempdir(), "test_upload.txt")
+    with open(tmp, "w") as f:
+        f.write("Pipeline connection test")
+    file_id = upload_file(tmp, "stories", "test_upload.txt")
+    print(f"Success -- file ID: {file_id}")
