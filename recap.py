@@ -41,7 +41,7 @@ def run_weekly_recap():
         print("No videos this week -- skipping recap"); return
     week_scripts = [{"title": j["title"], "script": j.get("script","")} for j in weekly_jobs]
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514", max_tokens=1000,
+        model="claude-sonnet-4-6", max_tokens=1000,
         system=RECAP_PROMPT,
         messages=[{"role":"user","content":json.dumps(week_scripts)}])
     recap_data = json.loads(msg.content[0].text)

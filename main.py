@@ -8,7 +8,7 @@ from clips    import run_clip_generation
 from audio    import run_audio
 from assemble import assemble_video, assemble_silent_preview
 from publish  import publish_all
-from sheets   import log_job, save_todays_script, load_todays_script, load_todays_clips
+from sheets   import log_job, save_todays_script, load_todays_script, load_todays_clips, save_todays_clips
 from notify   import send_notification
 
 def run_phase1(account_type="history"):
@@ -25,10 +25,10 @@ def run_phase1(account_type="history"):
                        "Visuals generating now (~2hrs).\n"
                        "Will notify when preview is ready to watch."),
             priority = "normal")
-    except Exception as e:
+    except Exception:
         job.update({"status": "error", "error": traceback.format_exc()})
     finally:
-        log_job(job)
+        log_job(account_type, "phase1", status=job.get("status", "error"))
 
 def run_phase2(account_type="history"):
     """Images + clips + silent preview. Runs immediately after Phase 1."""
@@ -37,6 +37,7 @@ def run_phase2(account_type="history"):
         script_data = load_todays_script(account_type)
         image_paths = run_image_generation(script_data, get_style(account_type))
         clip_paths  = run_clip_generation(image_paths, account_type)
+        save_todays_clips(clip_paths, account_type)
         preview = assemble_silent_preview(clip_paths, script_data["title"])
         from drive import upload_file
         upload_file(preview, "previews")
@@ -48,10 +49,10 @@ def run_phase2(account_type="history"):
                        "Watch it, record your VO, drop in Drive/05_audio/pending/\n"
                        "Pipeline starts automatically when it detects your file."),
             priority = "normal")
-    except Exception as e:
+    except Exception:
         job.update({"status": "error", "error": traceback.format_exc()})
     finally:
-        log_job(job)
+        log_job(account_type, "phase2", status=job.get("status", "error"))
 
 def run_phase3(account_type="history", trigger="cron"):
     """Audio + assembly + publish. Triggered by file watcher or fallback cron."""
@@ -75,20 +76,20 @@ def run_phase3(account_type="history", trigger="cron"):
             title=f"Video ready: {script_data['title']}",
             message=f"Duration: {outputs['duration']:.0f}s\nScheduled to post at next optimal time.",
             priority="normal")
-    except Exception as e:
+    except Exception:
         job.update({"status": "error", "error": traceback.format_exc()})
     finally:
-        log_job(job)
+        log_job(account_type, "phase3", status=job.get("status", "error"))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["1","2","3","breaking","recap"])
+    parser.add_argument("phase", choices=["1", "2", "3", "breaking", "recap"])
     parser.add_argument("account", nargs="?", default="history")
     parser.add_argument("--trigger", default="cron")
     args = parser.parse_args()
+
     if   args.phase == "1":        run_phase1(args.account)
     elif args.phase == "2":        run_phase2(args.account)
     elif args.phase == "3":        run_phase3(args.account, args.trigger)
     elif args.phase == "breaking": from breaking import run_breaking; run_breaking()
     elif args.phase == "recap":    from recap import run_weekly_recap; run_weekly_recap()
-

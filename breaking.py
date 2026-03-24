@@ -1,12 +1,13 @@
 # breaking.py -- Flask server for bypass/hold decision via tap links
-# Run as always-on Railway service: flask run --host 0.0.0.0
+# Run as always-on Railway service: flask run --host 0.0.0.0 --port 8080
+# Railway environment variable: FLASK_APP=breaking
 
 import os, json, threading
 from flask import Flask
 from script  import write_script, audit_bias, quality_check
 from images  import run_image_generation
 from clips   import run_clip_generation
-from sheets  import create_breaking_job, update_breaking_job
+from sheets  import create_breaking_job, update_breaking_job, log_job
 from notify  import send_notification
 from config  import get_style
 
@@ -39,10 +40,24 @@ def handle_breaking(story, urgency, account_type):
 def bypass(job_id):
     update_breaking_job(job_id, {"decision": "tts"})
     import subprocess
-    subprocess.Popen(["python","main.py","3","news","--trigger","breaking_tts"])
+    subprocess.Popen(["python", "main.py", "3", "news", "--trigger", "breaking_tts"])
     return "TTS pipeline triggered. Video will post at next optimal time.", 200
 
 @app.route("/breaking/<job_id>/hold")
 def hold(job_id):
     update_breaking_job(job_id, {"decision": "hold"})
     return "Job held. Drop your VO in Drive/pending/ when ready.", 200
+
+def run_breaking():
+    """
+    No-argument wrapper called by main.py for 'python main.py breaking'.
+    Processes any stored breaking candidates from temp/breaking_candidates.json.
+    """
+    filepath = os.path.join("temp", "breaking_candidates.json")
+    if not os.path.exists(filepath):
+        print("[Breaking] No breaking candidates found.")
+        return
+    with open(filepath, "r") as f:
+        candidates = json.load(f)
+    for c in candidates:
+        handle_breaking(c["story"], c["urgency"], c["account_type"])
