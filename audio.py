@@ -3,7 +3,7 @@ import whisper, datetime, os
 from elevenlabs.client import ElevenLabs
 from drive import upload_file, list_pending_recordings
 
-el_client = ElevenLabs(api_key=os.getenv("sk_f0af92a3f700b1b82a4668d223f1082d95fe30613a230b60"))
+el_client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
 
 VOICE_IDS = {
     "history": "pNInz6obpgDQGcFmaJgB",  # Adam -- verify at elevenlabs.io/voice-library

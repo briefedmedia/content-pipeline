@@ -1,5 +1,5 @@
 # discover.py -- run continuously, checks sources every 30 minutes
-import requests, json, datetime, feedparser, time
+import requests, json, datetime, feedparser, time, os
 from drive import upload_file
 from script import check_for_breaking
 
@@ -25,9 +25,10 @@ def run_scan():
     candidates = fetch_wikipedia_onthisday() + fetch_ap_rss()
     today = datetime.date.today().isoformat()
     filename = f"candidates_{today}.json"
-    with open(f"/tmp/{filename}", "w") as f:
+    filepath = f"/tmp/{filename}"
+    with open(filepath, "w") as f:
         json.dump(candidates, f, indent=2)
-    upload_file(f"/tmp/{filename}", "stories", filename)
+    upload_file(filepath, "stories", filename)
     # Check each candidate for breaking news status
     for story in candidates:
         check_for_breaking(story, account_type="news")
@@ -41,4 +42,3 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Scan error: {e}")
         time.sleep(1800)  # 30 minutes
-

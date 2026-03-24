@@ -71,7 +71,7 @@ def get_next_optimal_time(platform):
     first = OPTIMAL_POST_TIMES[platform].get(tomorrow, ["09:00"])[0]
     return datetime.datetime.strptime(
         f"{(now+datetime.timedelta(days=1)).date()} {first}", "%Y-%m-%d %H:%M")        
-}
+
 # Auto-publish toggle
 # Set to False to disable all uploading -- pipeline still runs and saves to Drive
 # Set per-platform to control individually
