@@ -19,7 +19,7 @@ import requests
 import feedparser
 import anthropic
 from dotenv import load_dotenv
-from drive import upload_file
+from drive import upload_file, get_or_create_story_folder
 from config import TMP, CLAUDE_MODEL
 
 load_dotenv()
@@ -491,7 +491,7 @@ def run_discovery():
     # Replace enriched with only qualified stories
     enriched = qualified
 
-    # Save to Drive
+    # Save to local TMP in a date-named subfolder (per-day, not per-story)
     output = {
         "date":            today,
         "sources_checked": len(RSS_SOURCES),
@@ -499,11 +499,15 @@ def run_discovery():
         "candidates":      enriched,
     }
 
-    local_path = os.path.join(TMP, filename)
+    date_dir   = os.path.join(TMP, today)
+    os.makedirs(date_dir, exist_ok=True)
+    local_path = os.path.join(date_dir, filename)
     with open(local_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
-    file_id = upload_file(local_path, "stories", filename)
+    # Upload into Drive/stories/<today>/ subfolder
+    stories_folder_id = get_or_create_story_folder(today, "stories")
+    file_id = upload_file(local_path, "stories", filename, folder_id=stories_folder_id)
 
     # Print summary
     print(f"\n{'─' * 65}")

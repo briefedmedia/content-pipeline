@@ -10,7 +10,7 @@ import base64
 import datetime
 import fal_client
 from dotenv import load_dotenv
-from drive import upload_file
+from drive import upload_file, get_or_create_story_folder
 from config import get_generator, TMP
 
 load_dotenv()
@@ -139,15 +139,16 @@ def generate_clip(image_path, motion_prompt, duration, account_type):
         raise ValueError(f'Unknown generator: {generator}')
 
 
-def download_and_upload_clip(video_url, clip_num, today):
-    """Download the generated clip and upload to Google Drive."""
-    data = requests.get(video_url).content
-    local_path = os.path.join(TMP, f'clip_{today}_{clip_num:02d}.mp4')
+def download_and_upload_clip(video_url, clip_num, slug, clips_folder_id):
+    """Download a generated clip and upload it into the story's Drive subfolder."""
+    data     = requests.get(video_url).content
+    filename = f'clip_{slug}_{clip_num:02d}.mp4'
+    local_path = os.path.join(TMP, slug, filename)
 
     with open(local_path, 'wb') as f:
         f.write(data)
 
-    file_id = upload_file(local_path, 'clips')
+    file_id = upload_file(local_path, 'clips', folder_id=clips_folder_id)
     return local_path, file_id
 
 
@@ -156,12 +157,20 @@ def download_and_upload_clip(video_url, clip_num, today):
 def run_clip_generation(image_paths, account_type='history'):
     """
     Generate one video clip per image.
+    Slug is read from image_paths[0]['slug'] -- set by images.py, never regenerated.
     Motion prompts rotate through the brand-compliant list for the account type.
     Generator (Runway vs Pika) is determined by config.py.
     """
-    today   = datetime.date.today().isoformat()
-    prompts = MOTION_PROMPTS.get(account_type, MOTION_PROMPTS['news'])
+    # Slug flows from images.py -- single source of truth
+    slug      = image_paths[0]['slug'] if image_paths else datetime.date.today().isoformat() + '_story'
+    prompts   = MOTION_PROMPTS.get(account_type, MOTION_PROMPTS['news'])
     generator = get_generator(account_type)
+
+    # Ensure local slug subfolder exists (images.py already created it, but be safe)
+    os.makedirs(os.path.join(TMP, slug), exist_ok=True)
+
+    # Find or create the story subfolder in Drive/clips/
+    clips_folder_id = get_or_create_story_folder(slug, 'clips')
 
     clip_paths = []
 
@@ -172,10 +181,10 @@ def run_clip_generation(image_paths, account_type='history'):
         print(f'  Motion: {motion[:60]}...')
 
         video_url = generate_clip(img['path'], motion, 5, account_type)
-        path, fid = download_and_upload_clip(video_url, i, today)
+        path, fid = download_and_upload_clip(video_url, i, slug, clips_folder_id)
 
-        clip_paths.append({'path': path, 'drive_id': fid})
+        clip_paths.append({'path': path, 'drive_id': fid, 'slug': slug})
         print(f'  Clip {i+1} saved: {path}')
 
-    print(f'Generated {len(clip_paths)} clips via {generator}')
+    print(f'Generated {len(clip_paths)} clips via {generator} → Drive/clips/{slug}/')
     return clip_paths

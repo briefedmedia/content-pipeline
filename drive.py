@@ -11,15 +11,15 @@ SERVICE_ACCOUNT_FILE = "service_account.json"
 
 FOLDERS = {
     "stories":   "1ZuCmxYRmYQwbMoMTIIqntvc0zMAd6aqa",
-    "scripts":   "1xRupya1ro5tKjM9ef-dkQbrgbappcZ34",
-    "images":    "167MQM-kopCJpZ38VPvFdq34Fgck6iyco",
-    "clips":     "1mfJFxqHKYs34yTlGZxvBaFm_981tA9OS",
-    "audio":     "1p2g3W7yU_mju5rOnqwJg9CAEhQjGTVsF",
-    "pending":   "15-r9x5VRNdzkKsYlBiT_jQqkfK3bulXl",
-    "captions":  "16F-kDmy5_obLBUBSBQBWv1IEL84QPhpe",
-    "final":     "1b4hfHTy1FI6sq2neuadpLPEEvlvzhA-1",
-    "published": "12LaqWIWM2OJrsWuVuCk2F6B2BhJRTmk3",
-    "previews":  "1BmX3_xJkHjjTJmPF1frq3Vv_LerFCXgm",
+    "scripts":   "1W-wvDHynt_m4MSPAXDAY-j7CsGiCq93L",
+    "images":    "14RFZr08yyxoGHaX0vLJaA8HjhBnFPMh0",
+    "clips":     "14RFZr08yyxoGHaX0vLJaA8HjhBnFPMh0",
+    "audio":     "1zn8eH2vh3IQ_2dVNmn7EpA8yr5buXDog",
+    "pending":   "1NU3EkuQKibOF-dx6KzoiL8zx_jYajFkg",
+    "captions":  "1lmT4b92i9DY6Lixqrv1TYUmaPKgWez-G",
+    "final":     "1-dvCxRypjLTMN7p_uRpthBidlsdpBljJ",
+    "published": "18d2S94_SmmJb_gho9y5w_CcqiEsMpFbE",
+    "previews":  "1eQszd5rLV0r3DfzL9h_1z8YOVj3R9Wtq",
 }
 
 def get_service():
@@ -27,26 +27,82 @@ def get_service():
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     return build("drive", "v3", credentials=creds)
 
-def upload_file(local_path, folder_key, filename=None):
-    if folder_key not in FOLDERS:
-        raise ValueError(f"Folder key '{folder_key}' not found in FOLDERS")
+def get_or_create_story_folder(slug, category):
+    """Find or create a slug-named subfolder inside the given category folder.
+
+    For story-specific files:  category = "scripts" / "images" / "clips" / etc.
+    For daily discovery files: pass the date string as slug, category = "stories"
+
+    Returns the Drive folder ID for that subfolder.
+    All API calls use supportsAllDrives=True.
+    """
+    service   = get_service()
+    parent_id = FOLDERS[category]
+
+    # Search for an existing subfolder with this exact name
+    results = service.files().list(
+        q=(
+            f'"{parent_id}" in parents and '
+            f'name = "{slug}" and '
+            f'mimeType = "application/vnd.google-apps.folder" and '
+            f'trashed = false'
+        ),
+        fields                    = "files(id, name)",
+        supportsAllDrives         = True,
+        includeItemsFromAllDrives = True,
+    ).execute()
+
+    files = results.get("files", [])
+    if files:
+        return files[0]["id"]
+
+    # Subfolder does not exist yet — create it
+    meta   = {
+        "name":     slug,
+        "mimeType": "application/vnd.google-apps.folder",
+        "parents":  [parent_id],
+    }
+    folder = service.files().create(
+        body              = meta,
+        fields            = "id",
+        supportsAllDrives = True,
+    ).execute()
+    print(f"Created Drive subfolder: {category}/{slug} (id: {folder['id']})")
+    return folder["id"]
+
+def upload_file(local_path, folder_key, filename=None, folder_id=None):
+    """Upload a file to Drive.
+
+    folder_id (optional): pass the story subfolder ID returned by
+    get_or_create_story_folder() to land the file inside the slug subfolder.
+    When omitted the file goes into the root category folder as before.
+    """
     service = get_service()
-    name = filename or os.path.basename(local_path)
-    meta = {"name": name, "parents": [FOLDERS[folder_key]]}
-    media = MediaFileUpload(local_path, resumable=True)
-    f = service.files().create(body=meta, media_body=media, fields="id,name").execute()
-    print(f"Uploaded: {name} ({f['id']})")
+    name    = filename or os.path.basename(local_path)
+    parent  = folder_id if folder_id else FOLDERS[folder_key]
+    meta    = {"name": name, "parents": [parent]}
+    media   = MediaFileUpload(local_path, resumable=True)
+    f = service.files().create(
+        body              = meta,
+        media_body        = media,
+        fields            = "id,name",
+        supportsAllDrives = True,
+    ).execute()
+    label = f"{folder_key}/{os.path.basename(os.path.dirname(local_path))}" if folder_id else folder_key
+    print(f"Uploaded {name} → Drive/{label} (id: {f['id']})")
     return f["id"]
 
-def download_file(file_id, save_path):
+def download_file(file_id, local_path):
     service = get_service()
-    request = service.files().get_media(fileId=file_id)
-    with io.FileIO(save_path, "wb") as fh:
-        downloader = MediaIoBaseDownload(fh, request)
+    req = service.files().get_media(
+        fileId=file_id,
+        supportsAllDrives=True       # ← add this line
+    )
+    with open(local_path, "wb") as fh:
+        dl = MediaIoBaseDownload(fh, req)
         done = False
         while not done:
-            _, done = downloader.next_chunk()
-    print(f"Downloaded: {save_path}")
+            _, done = dl.next_chunk()
 
 def list_files(folder_key):
     if folder_key not in FOLDERS:
@@ -97,11 +153,3 @@ def delete_file(file_id):
     service = get_service()
     service.files().delete(fileId=file_id).execute()
     print("Deleted:", file_id)
-
-if __name__ == "__main__":
-    import tempfile, os
-    tmp = os.path.join(tempfile.gettempdir(), "test_upload.txt")
-    with open(tmp, "w") as f:
-        f.write("Pipeline connection test")
-    file_id = upload_file(tmp, "stories", "test_upload.txt")
-    print(f"Success -- file ID: {file_id}")

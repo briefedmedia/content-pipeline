@@ -1,5 +1,5 @@
 # recap.py -- Sunday "This week in 90 seconds" -- uses existing clips, no new generation
-import anthropic, json, datetime
+import anthropic, json, datetime, re
 from drive  import upload_file, list_drive_clips
 from sheets import get_weeks_jobs
 from audio  import run_audio
@@ -46,9 +46,18 @@ def run_weekly_recap():
         messages=[{"role":"user","content":json.dumps(week_scripts)}])
     recap_data = json.loads(msg.content[0].text)
     recap_data["account_type"] = "news"
+
+    # Generate a slug for the recap so downstream functions (audio, assemble) can
+    # create per-story subfolders in TMP and Drive, just like daily videos.
+    today_str  = datetime.date.today().isoformat()
+    title_kw   = re.sub(r"[^a-z0-9\s]", "", recap_data["title"].lower()).split()
+    keywords   = "-".join(w for w in title_kw if len(w) > 2)[:30].strip("-") or "recap"
+    recap_data["slug"] = f"{today_str}_recap-{keywords}"
+
     clip_groups = select_recap_clips(weekly_jobs, recap_data["story_seconds"])
-    all_clips = [c for group in clip_groups for c in group["clips"]]
+    all_clips   = [c for group in clip_groups for c in group["clips"]]
     audio_path, srt_path = run_audio(recap_data, "news")
-    outputs = assemble_video(all_clips, audio_path, srt_path, recap_data["title"])
+    outputs = assemble_video(all_clips, audio_path, srt_path, recap_data["title"],
+                             recap_data["slug"])
     publish_all(outputs, srt_path, recap_data, "news")
     print(f"Weekly recap complete: {recap_data['title']}")

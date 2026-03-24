@@ -16,11 +16,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from breaking import app  # imports Flask app with /breaking/<id>/bypass and /breaking/<id>/hold
+from config import TMP
 import drive
 
 PORT = int(os.getenv("PORT", 8080))
 
-APPROVALS_FILE = os.path.join(os.getenv("TMP", "/tmp"), "approvals.json")
+# approvals.json lives in the temp root (not story-specific)
+APPROVALS_FILE = os.path.join(TMP, "approvals.json")
 
 
 def load_approvals():

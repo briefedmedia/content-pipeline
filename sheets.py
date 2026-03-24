@@ -71,23 +71,34 @@ def load_todays_script(account_type):
 # =========================
 
 def save_todays_clips(clip_paths, account_type):
-    """Save clip Drive IDs so Phase 3 can download and reassemble them."""
+    """Save clip Drive IDs so Phase 3 can download and reassemble them.
+
+    Stores the slug subdir alongside each clip name so load_todays_clips
+    can reconstruct the full TMP/<slug>/filename path on any platform.
+    """
     sheet = _get_sheet()
-    now = datetime.datetime.now().isoformat()
+    now   = datetime.datetime.now().isoformat()
     today = datetime.date.today().isoformat()
-    clip_records = [
-        {"drive_id": c["drive_id"], "name": os.path.basename(c["path"])}
-        for c in clip_paths
-    ]
+    clip_records = []
+    for c in clip_paths:
+        path   = c.get("path", "")
+        name   = os.path.basename(path)
+        # subdir is the immediate parent directory name (the slug)
+        subdir = os.path.basename(os.path.dirname(path)) if path else ""
+        clip_records.append({
+            "drive_id": c["drive_id"],
+            "name":     name,
+            "subdir":   subdir,   # e.g. "2026-03-24_trump-greenland"
+        })
     sheet.append_row([now, today, account_type, "clips", json.dumps(clip_records)])
     print(f"[Sheets] Saved {len(clip_records)} clip IDs for {account_type}")
 
 def load_todays_clips(account_type):
-    """Load today's clips, downloading from Drive to /tmp/ as needed."""
+    """Load today's clips, downloading from Drive into TMP/<slug>/ as needed."""
     from drive import download_file
     sheet = _get_sheet()
     today = datetime.date.today().isoformat()
-    rows = sheet.get_all_values()
+    rows  = sheet.get_all_values()
     clip_records = None
     for row in reversed(rows):
         if len(row) >= 5 and row[1] == today and row[2] == account_type and row[3] == "clips":
@@ -97,7 +108,14 @@ def load_todays_clips(account_type):
         raise ValueError(f"No clips found for {account_type} on {today}")
     clip_paths = []
     for c in clip_records:
-        local_path = os.path.join(TMP, c['name'])
+        subdir = c.get("subdir", "")
+        if subdir:
+            local_dir  = os.path.join(TMP, subdir)
+            os.makedirs(local_dir, exist_ok=True)
+            local_path = os.path.join(local_dir, c["name"])
+        else:
+            # Legacy records (no subdir stored) — fall back to TMP root
+            local_path = os.path.join(TMP, c["name"])
         if not os.path.exists(local_path):
             print(f"Downloading clip from Drive: {c['name']}")
             download_file(c["drive_id"], local_path)
