@@ -8,10 +8,11 @@ import time
 import os
 import base64
 import datetime
-import fal_client
 from dotenv import load_dotenv
-from drive import upload_file, get_or_create_story_folder
+load_dotenv()
 from config import get_generator, TMP
+from drive import upload_file, get_or_create_story_folder
+import fal_client
 
 load_dotenv()
 
@@ -175,10 +176,19 @@ def run_clip_generation(image_paths, account_type='history'):
     clip_paths = []
 
     for i, img in enumerate(image_paths):
-        motion = prompts[i % len(prompts)]
+        # Prefer the per-scene motion directive written by Claude in script.py.
+        # Fall back to the rotating MOTION_PROMPTS list only for old scripts that
+        # lack the motion field (flat-string scene format).
+        per_scene = img.get("motion", "").strip()
+        if per_scene:
+            motion     = per_scene
+            motion_src = "per-scene directive"
+        else:
+            motion     = prompts[i % len(prompts)]
+            motion_src = "fallback prompt"
 
         print(f'Generating clip {i+1}/{len(image_paths)} via {generator}...')
-        print(f'  Motion: {motion[:60]}...')
+        print(f'  Motion ({motion_src}): {motion[:80]}...')
 
         video_url = generate_clip(img['path'], motion, 5, account_type)
         path, fid = download_and_upload_clip(video_url, i, slug, clips_folder_id)
@@ -188,3 +198,39 @@ def run_clip_generation(image_paths, account_type='history'):
 
     print(f'Generated {len(clip_paths)} clips via {generator} → Drive/clips/{slug}/')
     return clip_paths
+
+if __name__ == "__main__":
+    import json, glob
+    from config import TMP
+
+    today   = datetime.date.today().isoformat()
+    pattern = os.path.join(TMP, f"{today}_*", f"script_{today}_*.json")
+    matches = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
+
+    if not matches:
+        print(f"No script file found — run script.py first")
+    else:
+        with open(matches[0], encoding="utf-8") as f:
+            script_data = json.load(f)
+
+        slug     = script_data["slug"]
+        slug_dir = os.path.join(TMP, slug)
+
+        # Reconstruct image_paths from local files
+        image_files = sorted(glob.glob(os.path.join(slug_dir, "scene_*.png")))
+        if not image_files:
+            print(f"No images found in {slug_dir} — run images.py first")
+        else:
+            image_paths = [
+                {"path": p, "drive_id": None, "scene": "", "slug": slug}
+                for p in image_files
+            ]
+            print(f"Found {len(image_paths)} images for {slug}")
+            print(f"Generator: {get_generator('news')}\n")
+
+            # Test with first image only before running full set
+            clip_paths = run_clip_generation(image_paths[:1], account_type="news")
+
+            print(f"\nTest clip done: {clip_paths[0]['path']}")
+            print(f"Drive ID: {clip_paths[0]['drive_id']}")
+            print(f"If it looks good, change image_paths[:1] to image_paths")

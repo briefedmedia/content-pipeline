@@ -1,20 +1,14 @@
-import tempfile
-import os
-import datetime
-
-TMP = tempfile.gettempdir()
-CLAUDE_MODEL = "claude-sonnet-4-6"
-
-# config.py -- change this ONE LINE to switch generators globally
-VIDEO_GENERATOR = "pika"   # options: "pika" or "runway"
-
-import tempfile
-import os
+import tempfile, os, datetime
 
 # Cross-platform temp directory
 # Returns C:\Users\...\AppData\Local\Temp on Windows
 # Returns /tmp on Linux (Railway)
 TMP = tempfile.gettempdir()
+
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
+# Change this ONE LINE to switch generators globally
+VIDEO_GENERATOR = "pika"   # options: "pika" or "runway"
 
 # Per-account override -- wins over global setting
 VIDEO_GENERATOR_OVERRIDE = {
@@ -36,7 +30,6 @@ CAPTION_MODE = {
 }
 
 # Day-of-week schedule
-import datetime
 WORK_DAYS = [2, 3, 4, 5]   # Wed=2 Thu=3 Fri=4 Sat=5
 HOME_DAYS = [6, 0, 1]      # Sun=6 Mon=0 Tue=1
 def is_work_day(): return datetime.datetime.now().weekday() in WORK_DAYS

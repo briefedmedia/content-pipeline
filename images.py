@@ -69,7 +69,10 @@ def generate_image(scene_description, style_key, scene_num, slug, images_folder_
 
 def run_image_generation(script_data, style_key="history_old"):
     # Slug flows from script_data -- single source of truth
-    slug   = script_data.get("slug") or datetime.date.today().isoformat() + "_story"
+    slug = script_data.get("slug")
+    if not slug:
+        slug = datetime.date.today().isoformat() + "_story"
+        print(f"  WARNING: no slug in script_data, using fallback: {slug}")
     scenes = script_data["scenes"]
 
     # Ensure local slug subfolder exists
@@ -81,22 +84,34 @@ def run_image_generation(script_data, style_key="history_old"):
 
     image_paths = []
     for i, scene in enumerate(scenes):
-        print(f"Image {i+1}/{len(scenes)}: {scene[:50]}...")
-        path, fid = generate_image(scene, style_key, i, slug, images_folder_id)
-        # Store slug in each dict so clips.py can read it downstream
-        image_paths.append({"path": path, "drive_id": fid, "scene": scene, "slug": slug})
+        # Handle both new object format {"image": ..., "motion": ...}
+        # and old flat-string format for backward compatibility with saved scripts
+        if isinstance(scene, dict):
+            scene_image  = scene.get("image", "")
+            scene_motion = scene.get("motion", "")
+        else:
+            scene_image  = scene
+            scene_motion = ""
+
+        print(f"Image {i+1}/{len(scenes)}: {scene_image[:50]}...")
+        path, fid = generate_image(scene_image, style_key, i, slug, images_folder_id)
+        # Store slug AND per-scene motion so clips.py can read both downstream
+        image_paths.append({
+            "path":     path,
+            "drive_id": fid,
+            "scene":    scene_image,
+            "motion":   scene_motion,   # clips.py uses this before falling back to MOTION_PROMPTS
+            "slug":     slug,
+        })
     print(f"Generated {len(image_paths)} images → Drive/images/{slug}/")
     return image_paths
 
 if __name__ == "__main__":
     import json, glob
     from config import TMP
-
     today   = datetime.date.today().isoformat()
-    # Scripts are now saved as TMP/<slug>/script_<slug>.json
     pattern = os.path.join(TMP, f"{today}_*", f"script_{today}_*.json")
     matches = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
-
     if not matches:
         print(f"No script file found matching {pattern}")
         print("Run script.py first to generate today's script")
@@ -104,17 +119,10 @@ if __name__ == "__main__":
         script_path = matches[0]
         with open(script_path, encoding="utf-8") as f:
             script_data = json.load(f)
-
         print(f"Loaded script: {script_data['title']}")
-        print(f"Scenes to generate: {len(script_data.get('scenes', []))}")
-        print(f"Testing scene 5 only (conference room)...\n")
-        test_script = {
-            "scenes": [script_data["scenes"][5]],
-            "title":  script_data["title"],
-        }
-        image_paths = run_image_generation(test_script, style_key="news")
-
+        print(f"Scenes to generate: {len(script_data.get('scenes', []))}\n")
+        image_paths = run_image_generation(script_data, style_key="news")
         print(f"\nAll done — {len(image_paths)} images generated")
         for i, img in enumerate(image_paths):
             print(f"  Scene {i+1}: {img['drive_id']}")
-        print("Check Drive/03_images/ to confirm all appeared")
+        print(f"Check Drive/03_images/{script_data['slug']}/ to confirm all appeared")

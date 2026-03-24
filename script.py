@@ -88,33 +88,108 @@ Before returning, read your script once and confirm:
 - Hook and kicker are both intact and strong
 Apply any fixes before returning.
 
-Each scene must be written as a cinematic still image description --
-not a camera direction. Describe what is IN the frame as if briefing
-a documentary photographer on exactly what to shoot.
-Include: main subject, perspective (close-up/wide/overhead),
-lighting quality, and emotional atmosphere.
-Every scene should feel like it belongs in the same film.
+SCENE DIRECTIONS — TWO FIELDS PER SCENE, BOTH REQUIRED:
 
-Good: "Weathered hands of an elderly fisherman holding a torn map,
-close-up, harsh side-lighting casting deep shadows, muted blue tones"
+Each scene is an object with two fields: "image" and "motion".
+Write them as separate briefs for two different systems.
+Do not repeat yourself between them.
 
-Good: "Aerial view looking straight down at a coastline where black rock
-meets white ice meets dark ocean, geometric and abstract, cold blue palette"
+─────────────────────────────────────────────
+"image" — PHOTOGRAPHY BRIEF FOR DALL-E
+─────────────────────────────────────────────
+Write as if briefing a photographer before the shoot. Be exact. Be physical.
 
-Bad: "Aerial footage of Greenland" -- too vague, produces illustrations
-Bad: "Show the shipping lanes" -- camera direction, not image description
-Bad: "Map of the Arctic region" -- produces infographics not photography
+Required in every image brief:
+1. SHOT DISTANCE: extreme close-up / close-up / medium / medium-wide / wide /
+   aerial. Include lens if relevant (85mm portrait, 24mm wide, overhead drone).
+2. EXACT SUBJECT: Not "a diplomat" -- "a Pakistani foreign ministry official,
+   late 40s, dark charcoal suit, right hand flat on a document". Name what
+   is in the frame with physical specificity.
+3. FOREGROUND / BACKGROUND: What is sharp, what is soft. What is visible
+   behind the subject and how far out of focus.
+4. LIGHT SOURCE: Where is it coming from, what angle, what quality.
+   "Overhead fluorescent casting hard downward shadows" not "institutional lighting".
+   "Late afternoon sun from camera left, golden, raking across surface texture"
+   not "warm lighting".
+5. ONE STORY-SPECIFIC DETAIL: Something that could only appear in this story.
+   A Pakistani flag pin. A spreadsheet with Farsi column headers. A map with
+   a specific border circled. If you cannot name one, the scene is too generic.
 
-No text, signs, logos, or readable labels in any scene.
-Scene count = estimated_seconds / 5 (rounded up).
+Never describe mood, atmosphere, or color palette -- those are outputs not inputs.
+Describe physical facts only. No text, signs, logos, or readable labels in any scene.
+
+─────────────────────────────────────────────
+"motion" — CINEMATOGRAPHER'S SHOT NOTE FOR PIKA/RUNWAY
+─────────────────────────────────────────────
+Write as a shot-by-shot sequence of physical events with implied timing.
+Be sequential, not impressionistic. The model executes these in order.
+
+Required in every motion brief:
+1. CAMERA: Does it move? If yes: direction, speed, distance.
+   If no: say "Camera completely static." Never leave this ambiguous.
+2. SUBJECT MOTION: What does the person or object do, in sequence.
+   "His right hand slides the document 6 inches forward and lifts away"
+   not "he hands over the document".
+3. SECONDARY MOTION: What else moves -- steam, breath, fabric, water,
+   leaves, smoke. At least one secondary motion per scene.
+4. TIMING ANCHORS: At least two timing notes per scene.
+   "2-second pause before he looks up." "Hold on empty chair for final 3 seconds."
+5. WHAT STAYS STILL: Name one thing explicitly that does not move.
+   Stillness creates tension.
+
+No aesthetic labels: no "cinematic", "smooth", "dramatic", "clean".
+Describe physical events only.
+
+─────────────────────────────────────────────
+GOOD EXAMPLE:
+─────────────────────────────────────────────
+{
+  "image": "Medium close-up, slight low angle across conference table.
+  Pakistani foreign ministry official, late 40s, dark charcoal suit,
+  right hand flat on single white document centered on table. Left hand
+  at table edge. Overhead fluorescent, hard downward shadow under jaw.
+  Condensation glass of water 8 inches to his right, untouched. Empty
+  chair opposite, top edge only, slightly soft focus. Plain off-white
+  wall behind, out of focus. Pakistani flag pin on lapel.",
+
+  "motion": "Camera completely static. After 1 second, official's right
+  hand slowly slides document 6 inches forward and lifts away. Eyes
+  remain downcast. 2-second pause, nothing moves. Left hand pulls back
+  off table into lap. Water glass stays completely still throughout.
+  Hold on document and empty chair for final 3 seconds. Only movement
+  in final hold: barely perceptible rise and fall of breathing under jacket."
+}
+
+─────────────────────────────────────────────
+BAD EXAMPLE:
+─────────────────────────────────────────────
+{
+  "image": "Diplomatic meeting room, tense atmosphere, muted tones",
+  -- No shot distance. No physical specificity. Describes mood not facts.
+
+  "motion": "Slow cinematic push. Dramatic and considered."
+  -- No subject motion. No timing. Aesthetic labels only.
+}
+
+Scene count: 8-10 scenes per video. One scene every 8-10 seconds.
+Minimum 7, maximum 12.
 
 SLUG: Pick 2-3 keywords that uniquely identify this story.
 Rules: lowercase, hyphens between words, no dates, no special characters.
 Example: "trump-greenland" or "fed-rate-cut" or "ukraine-ceasefire"
 
+CRITICAL JSON RULES — follow these exactly or the response cannot be parsed:
+* Use only straight double quotes inside JSON strings, never curly/smart quotes
+* No literal newlines inside string values -- use a single space instead of line breaks
+* No em-dashes (—) inside JSON strings -- use a regular hyphen (-) instead
+* Every string value must open and close on the same logical line
+* Escape apostrophes in possessives with a backslash: don\'t, he\'s, Pakistan\'s
+
 Return JSON only, no markdown fences:
 {"script": "...", "title": "...", "word_count": N,
- "estimated_seconds": N, "scenes": ["scene 1 desc", ...], "slug": "keyword1-keyword2"}"""
+ "estimated_seconds": N,
+ "scenes": [{"image": "...", "motion": "..."}, ...],
+ "slug": "keyword1-keyword2"}"""
 
 
 NEWS_SCRIPT_PROMPT = """You are writing narration for a non-partisan news explainer for Briefed.
@@ -183,33 +258,108 @@ Before returning, read your script once and ask:
   If yes, replace with a description of the action only.
 Apply these fixes before returning. A clean first draft needs no auditor.
 
-Each scene must be written as a cinematic still image description --
-not a camera direction. Describe what is IN the frame as if briefing
-a documentary photographer on exactly what to shoot.
-Include: main subject, perspective (close-up/wide/overhead),
-lighting quality, and emotional atmosphere.
-Every scene should feel like it belongs in the same film.
+SCENE DIRECTIONS — TWO FIELDS PER SCENE, BOTH REQUIRED:
 
-Good: "Weathered hands of an elderly fisherman holding a torn map,
-close-up, harsh side-lighting casting deep shadows, muted blue tones"
+Each scene is an object with two fields: "image" and "motion".
+Write them as separate briefs for two different systems.
+Do not repeat yourself between them.
 
-Good: "Aerial view looking straight down at a coastline where black rock
-meets white ice meets dark ocean, geometric and abstract, cold blue palette"
+─────────────────────────────────────────────
+"image" — PHOTOGRAPHY BRIEF FOR DALL-E
+─────────────────────────────────────────────
+Write as if briefing a photographer before the shoot. Be exact. Be physical.
 
-Bad: "Aerial footage of Greenland" -- too vague, produces illustrations
-Bad: "Show the shipping lanes" -- camera direction, not image description
-Bad: "Map of the Arctic region" -- produces infographics not photography
+Required in every image brief:
+1. SHOT DISTANCE: extreme close-up / close-up / medium / medium-wide / wide /
+   aerial. Include lens if relevant (85mm portrait, 24mm wide, overhead drone).
+2. EXACT SUBJECT: Not "a diplomat" -- "a Pakistani foreign ministry official,
+   late 40s, dark charcoal suit, right hand flat on a document". Name what
+   is in the frame with physical specificity.
+3. FOREGROUND / BACKGROUND: What is sharp, what is soft. What is visible
+   behind the subject and how far out of focus.
+4. LIGHT SOURCE: Where is it coming from, what angle, what quality.
+   "Overhead fluorescent casting hard downward shadows" not "institutional lighting".
+   "Late afternoon sun from camera left, golden, raking across surface texture"
+   not "warm lighting".
+5. ONE STORY-SPECIFIC DETAIL: Something that could only appear in this story.
+   A Pakistani flag pin. A spreadsheet with Farsi column headers. A map with
+   a specific border circled. If you cannot name one, the scene is too generic.
 
-No text, signs, logos, or readable labels in any scene.
-Scene count = estimated_seconds / 5 (rounded up).
+Never describe mood, atmosphere, or color palette -- those are outputs not inputs.
+Describe physical facts only. No text, signs, logos, or readable labels in any scene.
+
+─────────────────────────────────────────────
+"motion" — CINEMATOGRAPHER'S SHOT NOTE FOR PIKA/RUNWAY
+─────────────────────────────────────────────
+Write as a shot-by-shot sequence of physical events with implied timing.
+Be sequential, not impressionistic. The model executes these in order.
+
+Required in every motion brief:
+1. CAMERA: Does it move? If yes: direction, speed, distance.
+   If no: say "Camera completely static." Never leave this ambiguous.
+2. SUBJECT MOTION: What does the person or object do, in sequence.
+   "His right hand slides the document 6 inches forward and lifts away"
+   not "he hands over the document".
+3. SECONDARY MOTION: What else moves -- steam, breath, fabric, water,
+   leaves, smoke. At least one secondary motion per scene.
+4. TIMING ANCHORS: At least two timing notes per scene.
+   "2-second pause before he looks up." "Hold on empty chair for final 3 seconds."
+5. WHAT STAYS STILL: Name one thing explicitly that does not move.
+   Stillness creates tension.
+
+No aesthetic labels: no "cinematic", "smooth", "dramatic", "clean".
+Describe physical events only.
+
+─────────────────────────────────────────────
+GOOD EXAMPLE:
+─────────────────────────────────────────────
+{
+  "image": "Medium close-up, slight low angle across conference table.
+  Pakistani foreign ministry official, late 40s, dark charcoal suit,
+  right hand flat on single white document centered on table. Left hand
+  at table edge. Overhead fluorescent, hard downward shadow under jaw.
+  Condensation glass of water 8 inches to his right, untouched. Empty
+  chair opposite, top edge only, slightly soft focus. Plain off-white
+  wall behind, out of focus. Pakistani flag pin on lapel.",
+
+  "motion": "Camera completely static. After 1 second, official's right
+  hand slowly slides document 6 inches forward and lifts away. Eyes
+  remain downcast. 2-second pause, nothing moves. Left hand pulls back
+  off table into lap. Water glass stays completely still throughout.
+  Hold on document and empty chair for final 3 seconds. Only movement
+  in final hold: barely perceptible rise and fall of breathing under jacket."
+}
+
+─────────────────────────────────────────────
+BAD EXAMPLE:
+─────────────────────────────────────────────
+{
+  "image": "Diplomatic meeting room, tense atmosphere, muted tones",
+  -- No shot distance. No physical specificity. Describes mood not facts.
+
+  "motion": "Slow cinematic push. Dramatic and considered."
+  -- No subject motion. No timing. Aesthetic labels only.
+}
+
+Scene count: 8-10 scenes per video. One scene every 8-10 seconds.
+Minimum 7, maximum 12.
 
 SLUG: Pick 2-3 keywords that uniquely identify this story.
 Rules: lowercase, hyphens between words, no dates, no special characters.
 Example: "trump-greenland" or "fed-rate-cut" or "ukraine-ceasefire"
 
+CRITICAL JSON RULES — follow these exactly or the response cannot be parsed:
+* Use only straight double quotes inside JSON strings, never curly/smart quotes
+* No literal newlines inside string values -- use a single space instead of line breaks
+* No em-dashes (—) inside JSON strings -- use a regular hyphen (-) instead
+* Every string value must open and close on the same logical line
+* Escape apostrophes in possessives with a backslash: don\'t, he\'s, Pakistan\'s
+
 Return JSON only, no markdown fences:
 {"script": "...", "title": "...", "word_count": N,
- "estimated_seconds": N, "scenes": ["scene 1 desc", ...], "slug": "keyword1-keyword2"}"""
+ "estimated_seconds": N,
+ "scenes": [{"image": "...", "motion": "..."}, ...],
+ "slug": "keyword1-keyword2"}"""
 
 
 # ── Bias audit prompt ──────────────────────────────────────────────────────────
@@ -228,6 +378,8 @@ Fix bias by replacing loaded words and reframing sentences -- not by adding new 
 
 If the script is clean, say so. If not, provide a revised version that fixes
 the issues within the word count constraint.
+
+Do not write any analysis, explanation, or prose. Start your response with { and end with }.\n
 
 Return JSON only, no markdown fences:
 {"clean": true/false, "flags": ["issue 1", "issue 2"], "revised_script": "..."}
@@ -254,6 +406,8 @@ Also evaluate COMPLETENESS: could someone who knew nothing about this topic
 explain the full story after watching once? If not, note what is missing --
 but do not add words that push over 225. Flag it instead.
 
+Do not write any analysis, explanation, or prose. Start your response with { and end with }.\n
+
 Return JSON only, no markdown fences:
 {"pass": true/false, "word_count": N, "completeness_verdict": "...",
  "revised_script": "..."}
@@ -265,12 +419,25 @@ original unchanged if already within limit."""
 # ── Utility: strip markdown code fences ───────────────────────────────────────
 
 def strip_fences(text):
-    """Remove ```json ... ``` wrappers Claude sometimes adds despite instructions."""
+    """Remove ```json ... ``` wrappers and any prose before the first { or [."""
     text = text.strip()
+    # Strip markdown fences
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]
     if text.endswith("```"):
         text = text.rsplit("```", 1)[0]
+    text = text.strip()
+    # If Claude added prose before the JSON, find the first { or [
+    first_brace = min(
+        (text.find("{") if text.find("{") != -1 else len(text)),
+        (text.find("[") if text.find("[") != -1 else len(text))
+    )
+    if first_brace > 0:
+        text = text[first_brace:]
+    # Find the last } or ] and truncate anything after it
+    last_brace = max(text.rfind("}"), text.rfind("]"))
+    if last_brace != -1:
+        text = text[:last_brace + 1]
     return text.strip()
 
 
@@ -327,22 +494,107 @@ def select_story(candidates):
     msg = client.messages.create(
         model       = CLAUDE_MODEL,
         max_tokens  = 500,
-        temperature = 0,   # deterministic -- same input always picks same story
         system      = SELECTOR_PROMPT,
         messages    = [{"role": "user", "content": json.dumps(candidates)}]
     )
-    return json.loads(strip_fences(msg.content[0].text))
+    raw = msg.content[0].text
+    try:
+        return json.loads(strip_fences(raw))
+    except Exception as e:
+        print(f"  Selector parse failed: {e}")
+        return None
+
+
+def _repair_script_json(cleaned, raw, story):
+    """
+    Emergency JSON repair for write_script() responses.
+
+    Strategy 1: clean known bad characters (smart quotes, em-dashes) and re-parse.
+    Strategy 2: extract scalar fields via targeted regex; reconstruct a valid dict.
+    On total failure: dump raw to TMP/script_parse_error.txt and re-raise.
+    """
+    # Strategy 1 -- clean known bad Unicode and retry
+    s1 = cleaned
+    for bad, good in [('\u201c', '"'), ('\u201d', '"'),   # curly double quotes
+                      ('\u2018', "'"), ('\u2019', "'"),   # curly single quotes
+                      ('\u2014', '-'), ('\u2013', '-')]:  # em/en dashes
+        s1 = s1.replace(bad, good)
+    try:
+        result = json.loads(s1)
+        print("  JSON repaired via character cleaning")
+        return result
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 2 -- field-by-field regex extraction
+    result = {}
+
+    m = re.search(r'"title"\s*:\s*"((?:[^"\\]|\\.)*)"', s1)
+    result["title"] = m.group(1) if m else story.get("title", "Untitled")
+
+    m = re.search(r'"script"\s*:\s*"((?:[^"\\]|\\.)*)"', s1, re.DOTALL)
+    if m:
+        result["script"] = m.group(1).replace("\\n", " ").replace("\\t", " ")
+
+    for key in ("word_count", "estimated_seconds"):
+        m = re.search(rf'"{key}"\s*:\s*(\d+)', s1)
+        if m:
+            result[key] = int(m.group(1))
+
+    m = re.search(r'"slug"\s*:\s*"((?:[^"\\]|\\.)*)"', s1)
+    result["slug"] = m.group(1) if m else ""
+
+    # Try to parse scenes array by finding matching brackets
+    result["scenes"] = []
+    m = re.search(r'"scenes"\s*:\s*(\[)', s1)
+    if m:
+        bstart = m.start(1)
+        depth, in_str, esc = 0, False, False
+        end = bstart
+        for idx in range(bstart, len(s1)):
+            ch = s1[idx]
+            if esc:          esc = False; continue
+            if ch == '\\':   esc = True;  continue
+            if ch == '"':    in_str = not in_str; continue
+            if not in_str:
+                if ch == '[':   depth += 1
+                elif ch == ']': depth -= 1
+                if depth == 0:  end = idx; break
+        if depth == 0:
+            try:
+                result["scenes"] = json.loads(s1[bstart:end + 1])
+            except json.JSONDecodeError:
+                pass  # leave as empty list
+
+    if "script" not in result or not result["script"]:
+        error_path = os.path.join(TMP, "script_parse_error.txt")
+        with open(error_path, "w", encoding="utf-8") as fh:
+            fh.write(raw)
+        print(f"  JSON repair failed -- raw response saved to {error_path}")
+        raise json.JSONDecodeError(
+            f"write_script: could not extract 'script' field. See {error_path}",
+            cleaned, 0)
+
+    print(f"  JSON repair partial success: {len(result.get('scenes', []))} scenes extracted")
+    return result
 
 
 def write_script(story, account_type="history"):
     prompt = HISTORY_SCRIPT_PROMPT if account_type == "history" else NEWS_SCRIPT_PROMPT
     msg = client.messages.create(
         model      = CLAUDE_MODEL,
-        max_tokens = 2000,
+        max_tokens = 4000,      # increased from 2000: new scene object format is token-heavy
         system     = prompt,
         messages   = [{"role": "user", "content": json.dumps(story)}]
     )
-    result = json.loads(strip_fences(msg.content[0].text))
+    raw     = msg.content[0].text
+    cleaned = strip_fences(raw)
+
+    try:
+        result = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        print(f"  write_script JSON parse error: {e}")
+        result = _repair_script_json(cleaned, raw, story)
 
     # Remap alternative key names Claude sometimes uses despite instructions
     if "script" not in result:
@@ -412,12 +664,13 @@ def audit_bias(script_data, max_retries=2):
 
         try:
             audit = json.loads(strip_fences(raw))
-        except Exception:
-            print(f"  Bias audit parse failed -- annotating as unreviewed")
-            script_data["bias_check"] = {
-                "passed":   False,
-                "flags":    ["AUDIT FAILED -- response could not be parsed"],
-                "reviewed": False,
+        except Exception as e:
+            print(f"  Bias audit parse failed: {e}")
+            print(f"  Raw response was:\n{raw[:1000]}")
+            script_data["bias_audit"] = {
+                "passed":            False,
+                "completeness_note": "BIAS AUDIT FAILED -- parse error",
+                "reviewed":          False,
             }
             return script_data
 
@@ -435,15 +688,15 @@ def audit_bias(script_data, max_retries=2):
         flags = audit.get("flags", [])
         print(f"  Bias audit flagged {len(flags)} issues")
 
-        # Apply revision only if it stays within word limit
+        # Apply revision if it stays within the absolute ceiling (not just +15 words)
         if audit.get("revised_script"):
             new_wc = len(audit["revised_script"].split())
-            if new_wc <= wc + 15:
+            if new_wc <= WORD_SOFT_CAP:
                 script_data["script"] = audit["revised_script"]
                 print(f"  Revision applied ({new_wc} words)")
             else:
-                # Revision inflated the script -- keep original, annotate flags
-                print(f"  Revision inflated to {new_wc} words -- keeping original, annotating flags")
+                # Revision pushed over ceiling -- keep original, annotate flags
+                print(f"  Revision bloated to {new_wc} words (>{WORD_SOFT_CAP}) -- keeping original, annotating flags")
                 script_data["bias_check"] = {
                     "passed":   False,
                     "flags":    flags,
@@ -487,8 +740,9 @@ def quality_check(script_data, max_retries=2):
 
         try:
             result = json.loads(strip_fences(raw))
-        except Exception:
-            print(f"  Quality check parse failed -- annotating as unreviewed")
+        except Exception as e:
+            print(f"  Quality check parse failed: {e}")
+            print(f"  Raw response was:\n{raw[:1000]}")
             script_data["quality_check"] = {
                 "passed":            False,
                 "completeness_note": "QUALITY CHECK FAILED -- parse error",
@@ -506,8 +760,8 @@ def quality_check(script_data, max_retries=2):
         if "revised_script" not in result and "script" in result:
             result["revised_script"] = result["script"]
 
-        # Always apply revised_script -- catches length trimming
-        if result.get("revised_script"):
+        # Apply revised_script only when non-trivially long (guards against empty/stub responses)
+        if result.get("revised_script") and len(result["revised_script"].split()) > 50:
             new_wc = len(result["revised_script"].split())
             old_wc = len(script_data["script"].split())
             if new_wc != old_wc:
@@ -570,11 +824,14 @@ def run_scripting(candidates, account_type="history"):
     else:
         print(f"  {len(qualified)}/{len(candidates)} candidates qualify (score >= {MIN_EXPLAINABILITY_SCORE})")
 
-    selected    = select_story(qualified)
+    selected = select_story(qualified)
+    if selected is None:
+        raise ValueError("Story selection failed -- check selector raw response above")
     story       = qualified[selected["index"]]
     print(f"  Selected: {selected['title']}")
 
     script_data = write_script(story, account_type)
+    print(f"  Slug: {script_data['slug']}")   # confirm slug matches selected story
 
     if account_type == "news":
         script_data = audit_bias(script_data)
