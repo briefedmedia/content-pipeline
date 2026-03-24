@@ -2,6 +2,7 @@
 import whisper, datetime, os
 from elevenlabs.client import ElevenLabs
 from drive import upload_file, list_pending_recordings
+from config import TMP
 
 el_client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
 
@@ -12,7 +13,7 @@ VOICE_IDS = {
 
 def check_for_human_recording(today, account_type):
     """Check Drive pending folder for a recording matching today and account."""
-    local_path = f"/tmp/voiceover_{today}_{account_type}.mp3"
+    local_path = os.path.join(TMP, f"voiceover_{today}_{account_type}.mp3")
     pending = list_pending_recordings()
     for f in pending:
         if today in f["name"] and account_type in f["name"]:
@@ -35,7 +36,7 @@ def generate_tts(script_text, account_type, today):
     print(f"No human recording found -- generating TTS ({account_type} voice)")
     audio = el_client.generate(
         text=script_text, voice=voice_id, model="eleven_multilingual_v2")
-    local_path = f"/tmp/voiceover_{today}_{account_type}.mp3"
+    local_path = os.path.join(TMP, f"voiceover_{today}_{account_type}.mp3")
     with open(local_path, "wb") as f:
         for chunk in audio: f.write(chunk)
     return local_path
@@ -43,7 +44,7 @@ def generate_tts(script_text, account_type, today):
 def generate_captions(audio_path, today, account_type):
     model = whisper.load_model("small")
     result = model.transcribe(audio_path)
-    srt_path = f"/tmp/captions_{today}_{account_type}.srt"
+    srt_path = os.path.join(TMP, f"captions_{today}_{account_type}.srt")
     with open(srt_path, "w") as f:
         for i, seg in enumerate(result["segments"]):
             s = format_time(seg["start"])

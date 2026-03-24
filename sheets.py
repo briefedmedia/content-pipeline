@@ -8,6 +8,7 @@ from google.oauth2.service_account import Credentials
 import datetime
 import json
 import os
+from config import TMP
 
 SERVICE_ACCOUNT_FILE = "service_account.json"
 SCOPES = [
@@ -96,7 +97,7 @@ def load_todays_clips(account_type):
         raise ValueError(f"No clips found for {account_type} on {today}")
     clip_paths = []
     for c in clip_records:
-        local_path = f"/tmp/{c['name']}"
+        local_path = os.path.join(TMP, c['name'])
         if not os.path.exists(local_path):
             print(f"Downloading clip from Drive: {c['name']}")
             download_file(c["drive_id"], local_path)

@@ -11,7 +11,7 @@ import datetime
 import fal_client
 from dotenv import load_dotenv
 from drive import upload_file
-from config import get_generator
+from config import get_generator, TMP
 
 load_dotenv()
 
@@ -142,7 +142,7 @@ def generate_clip(image_path, motion_prompt, duration, account_type):
 def download_and_upload_clip(video_url, clip_num, today):
     """Download the generated clip and upload to Google Drive."""
     data = requests.get(video_url).content
-    local_path = f'/tmp/clip_{today}_{clip_num:02d}.mp4'
+    local_path = os.path.join(TMP, f'clip_{today}_{clip_num:02d}.mp4')
 
     with open(local_path, 'wb') as f:
         f.write(data)

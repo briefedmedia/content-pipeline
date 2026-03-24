@@ -2,6 +2,7 @@
 import requests, json, datetime, feedparser, time, os
 from drive import upload_file
 from script import check_for_breaking
+from config import TMP
 
 NEWSAPI_KEY = "58bef030b72d44539e91089b87852014"
 BREAKING_THRESHOLD = 7  # urgency score out of 10 to trigger alert
@@ -25,7 +26,7 @@ def run_scan():
     candidates = fetch_wikipedia_onthisday() + fetch_ap_rss()
     today = datetime.date.today().isoformat()
     filename = f"candidates_{today}.json"
-    filepath = f"/tmp/{filename}"
+    filepath = os.path.join(TMP, filename)
     with open(filepath, "w") as f:
         json.dump(candidates, f, indent=2)
     upload_file(filepath, "stories", filename)

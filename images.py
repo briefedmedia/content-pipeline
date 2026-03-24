@@ -2,6 +2,7 @@
 import openai, requests, os, datetime
 from drive import upload_file
 from dotenv import load_dotenv
+from config import TMP
 
 # Load environment variables from .env (optional)
 load_dotenv()
@@ -30,7 +31,7 @@ def generate_image(scene_description, style_key, scene_num, today):
         size="1024x1024", quality="standard", n=1
     )
     img_data = requests.get(response.data[0].url).content
-    local_path = f"/tmp/scene_{today}_{scene_num:02d}.png"
+    local_path = os.path.join(TMP, f"scene_{today}_{scene_num:02d}.png")
     with open(local_path, "wb") as f:
         f.write(img_data)
     fid = upload_file(local_path, "images")
