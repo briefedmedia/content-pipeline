@@ -92,31 +92,26 @@ def send_notification(title, message, priority="normal"):
 
 def notify_stories_ready(candidates, date, server_url, auto_select_minutes=120):
     """
-    End of Phase 1 -- qualified stories ready for approval.
-    Includes tap-to-approve links and explainability scores.
+    Send one Pushover notification per story so each is tappable and clean.
+    First notification also includes the auto-select warning.
     """
-    lines = [f"Tap a story to approve it for production:\n"]
-
     for i, s in enumerate(candidates):
         score = 0
         hook  = ""
         if s.get("historical_context"):
             score = s["historical_context"].get("explainability_score", 0)
-            hook  = s["historical_context"].get("suggested_hook", "")[:80]
+            hook  = s["historical_context"].get("suggested_hook", "")[:100]
 
         approve_url = f"{server_url}/approve/{date}/{i}"
-        lines.append(f"{i+1}. [{score}/10] {s['title'][:60]}")
-        if hook:
-            lines.append(f"   Hook: {hook}...")
-        lines.append(f"   APPROVE: {approve_url}\n")
 
-    lines.append(f"Story #1 auto-approves in {auto_select_minutes} mins if no response.")
+        # First story gets the auto-select warning
+        footer = f"\nAuto-selects story #1 in {auto_select_minutes} mins if no response." if i == 0 else ""
 
-    send_notification(
-        title    = f"Stories ready -- {len(candidates)} candidates",
-        message  = "\n".join(lines),
-        priority = "normal"
-    )
+        send_notification(
+            title   = f"Story {i+1} of {len(candidates)} [{score}/10]: {s['title'][:50]}",
+            message = f"{hook}\n\nTap to approve:\n{approve_url}{footer}",
+            priority = "normal"
+        )
 
 
 def notify_story_approved(title, index, account_type):
