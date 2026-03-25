@@ -1,7 +1,7 @@
 # main.py -- three-phase pipeline with file-watcher trigger support
 import sys, datetime, traceback, argparse, os
 from config  import get_style, is_home_day
-from discover import run_scan
+from discover import run_discovery
 from script   import run_scripting
 from images   import run_image_generation
 from clips    import run_clip_generation
