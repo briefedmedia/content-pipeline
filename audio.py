@@ -20,7 +20,6 @@ else:
         "GOOGLE_APPLICATION_CREDENTIALS",
         r"C:\Users\micah\OneDrive\Documents\AIUsedRight\ContentPipeline\service_account.json"
     )
-)
 from google.cloud import texttospeech
 
 
