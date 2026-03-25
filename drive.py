@@ -6,8 +6,23 @@ from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 import io, os, datetime
 
+import json, tempfile
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-SERVICE_ACCOUNT_FILE = "service_account.json"
+
+def _get_service_account_file():
+    """
+    On Railway: write GOOGLE_SERVICE_ACCOUNT_JSON env var to a temp file.
+    Locally: use service_account.json file directly.
+    """
+    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if json_content:
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        tmp.write(json_content)
+        tmp.close()
+        return tmp.name
+    return "service_account.json"
+
+SERVICE_ACCOUNT_FILE = _get_service_account_file()
 
 FOLDERS = {
     "stories":   "1ZuCmxYRmYQwbMoMTIIqntvc0zMAd6aqa",

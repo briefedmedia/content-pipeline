@@ -7,9 +7,19 @@ from drive import upload_file, list_pending_recordings, get_or_create_story_fold
 from config import TMP, TTS_PROVIDER, GOOGLE_TTS_VOICE, EDGE_TTS_VOICE
 
 # Google Cloud TTS setup
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv(
-    "GOOGLE_APPLICATION_CREDENTIALS",
-    r"C:\Users\micah\OneDrive\Documents\AIUsedRight\ContentPipeline\service_account.json"
+# On Railway, write service account JSON from env var to temp file
+_sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+if _sa_json:
+    import tempfile
+    _tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+    _tmp.write(_sa_json)
+    _tmp.close()
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _tmp.name
+else:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv(
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        r"C:\Users\micah\OneDrive\Documents\AIUsedRight\ContentPipeline\service_account.json"
+    )
 )
 from google.cloud import texttospeech
 
