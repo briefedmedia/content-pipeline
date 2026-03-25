@@ -13,3 +13,4 @@ flask
 schedule
 feedparser
 wikipedia-api
+gspread
