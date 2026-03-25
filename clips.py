@@ -113,10 +113,11 @@ def _generate_pika(image_path, motion_prompt, duration=5):
     result = fal_client.subscribe(
         'fal-ai/pika/v2.2/image-to-video',   # correct model ID
         arguments={
-            'image_url':  image_url,
-            'prompt':     motion_prompt,
-            'resolution': '1080p',
-            'duration':   duration,
+            'image_url':       image_url,
+            'prompt':          motion_prompt,
+            'resolution':      '1080p',
+            'aspect_ratio':    '9:16',
+            'duration':        duration,
         },
         with_logs=True,
         on_queue_update=on_queue_update,
@@ -221,10 +222,17 @@ if __name__ == "__main__":
         if not image_files:
             print(f"No images found in {slug_dir} — run images.py first")
         else:
-            image_paths = [
-                {"path": p, "drive_id": None, "scene": "", "slug": slug}
-                for p in image_files
-            ]
+            scenes = script_data.get("scenes", [])
+            image_paths = []
+            for i, p in enumerate(image_files):
+                scene = scenes[i] if i < len(scenes) else {}
+                image_paths.append({
+                    "path":     p,
+                    "drive_id": None,
+                    "scene":    scene.get("image", "") if isinstance(scene, dict) else scene,
+                    "motion":   scene.get("motion", "") if isinstance(scene, dict) else "",
+                    "slug":     slug,
+                })
             print(f"Found {len(image_paths)} images for {slug}")
             print(f"Generator: {get_generator('news')}\n")
 

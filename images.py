@@ -49,14 +49,16 @@ def generate_image(scene_description, style_key, scene_num, slug, images_folder_
     # Add quality directives and anti-illustration guardrail
     full_prompt = (
         f"{base_prompt}. "
-        "Grainy, imperfect, authentic. Not a render, not staged, not polished."
+        "Grainy, imperfect, authentic. Not a render, not staged, not polished. "
+        "No text of any kind on any surface — no passport text, no ship names, "
+        "no map labels, no signage, no readable writing anywhere in the frame."
     )
 
     response = client.images.generate(
         model   = "dall-e-3",
         prompt  = full_prompt,
-        size    = "1024x1024",
-        quality = "hd",        # hd produces significantly better results than standard
+        size    = "1024x1792",   # 9:16 vertical -- matches TikTok/Reels format
+        quality = "hd",
         n       = 1
     )
     img_data   = requests.get(response.data[0].url).content

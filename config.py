@@ -92,3 +92,13 @@ AUTO_PUBLISH = {
 # Stories scoring below this are filtered out and replaced with next candidate
 # Scale: 1-10. 6 = has meaningful historical context. Raise to 7 as quality bar increases.
 MIN_EXPLAINABILITY_SCORE = 6
+
+TTS_PROVIDER  = "google"   # options: "google", "edge"
+EDGE_TTS_VOICE = {
+    "news":    "en-US-GuyNeural",
+    "history": "en-US-GuyNeural",
+}
+GOOGLE_TTS_VOICE = {
+    "news":    "en-US-Neural2-D",   # authoritative male
+    "history": "en-US-Neural2-J",   # warmer male
+}

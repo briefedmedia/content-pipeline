@@ -119,6 +119,20 @@ Never describe mood, atmosphere, or color palette -- those are outputs not input
 Describe physical facts only. No text, signs, logos, or readable labels in any scene.
 
 ─────────────────────────────────────────────
+"image" — AVOID LIST (apply to every scene)
+─────────────────────────────────────────────
+AVOID as primary subject -- these render badly in video and break credibility:
+- Hands, fingers, or fine motor detail as the focal point -- if hand action
+  is story-relevant, pull back to at least medium shot so hands are secondary
+- Faces in extreme close-up -- medium close-up maximum, never fill-frame face
+- Crowds of more than 4-5 people -- individuals distort and merge in video
+- Animals as primary subject -- fur and movement degrade badly
+- Water in extreme close-up -- use mid-distance or wider
+- Text on any surface -- especially avoid scenes where text would be the
+  natural focal point (maps, documents, screens, signs)
+- Fine mechanical detail -- gears, instruments, circuitry
+
+─────────────────────────────────────────────
 "motion" — CINEMATOGRAPHER'S SHOT NOTE FOR PIKA/RUNWAY
 ─────────────────────────────────────────────
 Write as a shot-by-shot sequence of physical events with implied timing.
@@ -128,14 +142,33 @@ Required in every motion brief:
 1. CAMERA: Does it move? If yes: direction, speed, distance.
    If no: say "Camera completely static." Never leave this ambiguous.
 2. SUBJECT MOTION: What does the person or object do, in sequence.
-   "His right hand slides the document 6 inches forward and lifts away"
-   not "he hands over the document".
-3. SECONDARY MOTION: What else moves -- steam, breath, fabric, water,
-   leaves, smoke. At least one secondary motion per scene.
+   Describe full-body or large-object movement only -- not hand or finger
+   movement. "He turns slowly toward the window" not "his fingers trace the map".
+3. SECONDARY MOTION: What else moves -- wind in fabric, visible breath,
+   distant water, smoke at distance, leaves, flag movement.
+   At least one secondary motion per scene.
 4. TIMING ANCHORS: At least two timing notes per scene.
    "2-second pause before he looks up." "Hold on empty chair for final 3 seconds."
 5. WHAT STAYS STILL: Name one thing explicitly that does not move.
    Stillness creates tension.
+
+AVOID in motion brief -- these render badly and break credibility:
+- Any hand, finger, or fine motor movement as the directed action
+- Lip movement, speech, or facial expression changes
+- Eye contact directed at camera or blinking close-up
+- Fast movement of any kind -- all motion must be slow and deliberate
+- Multiple people moving simultaneously
+- Objects appearing or disappearing mid-clip
+- Rapid or handheld-style camera movement
+
+SAFE motion elements -- prefer these:
+- Slow camera push, pull, or drift
+- Wind moving fabric, hair, or foliage
+- Distant water movement
+- Breath visible in cold air
+- Single person shifting weight, turning, or walking from medium distance
+- Vehicles or large objects moving slowly
+- Atmospheric particles -- dust, smoke at distance, steam rising
 
 No aesthetic labels: no "cinematic", "smooth", "dramatic", "clean".
 Describe physical events only.
@@ -183,7 +216,6 @@ CRITICAL JSON RULES — follow these exactly or the response cannot be parsed:
 * No literal newlines inside string values -- use a single space instead of line breaks
 * No em-dashes (—) inside JSON strings -- use a regular hyphen (-) instead
 * Every string value must open and close on the same logical line
-* Escape apostrophes in possessives with a backslash: don\'t, he\'s, Pakistan\'s
 
 Return JSON only, no markdown fences:
 {"script": "...", "title": "...", "word_count": N,
@@ -288,6 +320,22 @@ Required in every image brief:
 Never describe mood, atmosphere, or color palette -- those are outputs not inputs.
 Describe physical facts only. No text, signs, logos, or readable labels in any scene.
 
+Never specify a world map or regional map as a scene unless you specify that there is to be no text, only verified historically accurate geographic shapes — DALL-E renders readable text on maps which violates the no-text rule. Use a physical corkboard map with no country outlines, or replace with a different scene entirely.
+
+─────────────────────────────────────────────
+"image" — AVOID LIST (apply to every scene)
+─────────────────────────────────────────────
+AVOID as primary subject -- these render badly in video and break credibility:
+- Hands, fingers, or fine motor detail as the focal point -- if hand action
+  is story-relevant, pull back to at least medium shot so hands are secondary
+- Faces in extreme close-up -- medium close-up maximum, never fill-frame face
+- Crowds of more than 4-5 people -- individuals distort and merge in video
+- Animals as primary subject -- fur and movement degrade badly
+- Water in extreme close-up -- use mid-distance or wider
+- Text on any surface -- especially avoid scenes where text would be the
+  natural focal point (maps, documents, screens, signs)
+- Fine mechanical detail -- gears, instruments, circuitry
+
 ─────────────────────────────────────────────
 "motion" — CINEMATOGRAPHER'S SHOT NOTE FOR PIKA/RUNWAY
 ─────────────────────────────────────────────
@@ -298,14 +346,33 @@ Required in every motion brief:
 1. CAMERA: Does it move? If yes: direction, speed, distance.
    If no: say "Camera completely static." Never leave this ambiguous.
 2. SUBJECT MOTION: What does the person or object do, in sequence.
-   "His right hand slides the document 6 inches forward and lifts away"
-   not "he hands over the document".
-3. SECONDARY MOTION: What else moves -- steam, breath, fabric, water,
-   leaves, smoke. At least one secondary motion per scene.
+   Describe full-body or large-object movement only -- not hand or finger
+   movement. "He turns slowly toward the window" not "his fingers trace the map".
+3. SECONDARY MOTION: What else moves -- wind in fabric, visible breath,
+   distant water, smoke at distance, leaves, flag movement.
+   At least one secondary motion per scene.
 4. TIMING ANCHORS: At least two timing notes per scene.
    "2-second pause before he looks up." "Hold on empty chair for final 3 seconds."
 5. WHAT STAYS STILL: Name one thing explicitly that does not move.
    Stillness creates tension.
+
+AVOID in motion brief -- these render badly and break credibility:
+- Any hand, finger, or fine motor movement as the directed action
+- Lip movement, speech, or facial expression changes
+- Eye contact directed at camera or blinking close-up
+- Fast movement of any kind -- all motion must be slow and deliberate
+- Multiple people moving simultaneously
+- Objects appearing or disappearing mid-clip
+- Rapid or handheld-style camera movement
+
+SAFE motion elements -- prefer these:
+- Slow camera push, pull, or drift
+- Wind moving fabric, hair, or foliage
+- Distant water movement
+- Breath visible in cold air
+- Single person shifting weight, turning, or walking from medium distance
+- Vehicles or large objects moving slowly
+- Atmospheric particles -- dust, smoke at distance, steam rising
 
 No aesthetic labels: no "cinematic", "smooth", "dramatic", "clean".
 Describe physical events only.
@@ -353,7 +420,6 @@ CRITICAL JSON RULES — follow these exactly or the response cannot be parsed:
 * No literal newlines inside string values -- use a single space instead of line breaks
 * No em-dashes (—) inside JSON strings -- use a regular hyphen (-) instead
 * Every string value must open and close on the same logical line
-* Escape apostrophes in possessives with a backslash: don\'t, he\'s, Pakistan\'s
 
 Return JSON only, no markdown fences:
 {"script": "...", "title": "...", "word_count": N,
@@ -371,6 +437,12 @@ Flag any of the following:
 - Missing perspectives (a significant viewpoint that is absent or misrepresented)
 - Factual errors or unverifiable claims
 - Political framing that favors one side
+
+IMPORTANT: The hook (first 1-2 sentences) is protected. Do not flag or
+revise the hook unless it contains a factual error. A surprising or
+uncomfortable fact used as a hook is not bias -- it is journalism.
+Reframing the lead as wire-service neutral is not an improvement, it is
+a regression. Leave the hook alone.
 
 HARD LENGTH LIMIT: Your revised script must stay within the same word count as
 the original, plus or minus 10 words. Do not add explanatory content.
@@ -635,11 +707,62 @@ def write_script(story, account_type="history"):
     validate_word_count(result["script"])
     return result
 
+def write_shorts_script(script_data):
+    """
+    Trim existing script to YouTube Shorts length (50-58 seconds, ~145 words max).
+    One Claude call -- no new story research, reuses existing script_data.
+    Keeps: hook, hidden context, kicker.
+    Cuts: most historical background, reduces stakes to one sentence.
+    """
+    SHORTS_PROMPT = """You are editing a news explainer script down to a YouTube Shorts version.
+
+HARD LIMIT: 145 words maximum. Target: 130-145 words. This is non-negotiable.
+The Shorts version must be 50-58 seconds when read aloud at natural pace.
+
+WHAT TO KEEP (in order of priority):
+1. HOOK -- first 1-2 sentences, keep exactly as written
+2. HIDDEN CONTEXT -- the "what most coverage misses" section, keep exactly as written
+3. KICKER -- last sentence, keep exactly as written
+4. ONE sentence of current facts
+5. ONE sentence of stakes
+
+WHAT TO CUT:
+- Most historical background -- reduce to one bridging sentence maximum
+- Redundant context
+- Any sentence that restates something already said
+
+Do not rewrite the kept sections -- preserve their exact wording.
+Do not add new content.
+Do not write any analysis, explanation, or prose. Start your response with { and end with }.
+
+Return JSON only, no markdown fences:
+{"shorts_script": "...", "shorts_word_count": N, "shorts_estimated_seconds": N}"""
+
+    msg = client.messages.create(
+        model      = CLAUDE_MODEL,
+        max_tokens = 1000,
+        system     = SHORTS_PROMPT,
+        messages   = [{"role": "user", "content": script_data["script"]}]
+    )
+    raw = msg.content[0].text.strip()
+    try:
+        result = json.loads(strip_fences(raw))
+        script_data["shorts_script"]            = result["shorts_script"]
+        script_data["shorts_word_count"]        = result.get("shorts_word_count", len(result["shorts_script"].split()))
+        script_data["shorts_estimated_seconds"] = result.get("shorts_estimated_seconds", 55)
+        print(f"  Shorts script: {script_data['shorts_word_count']} words ({script_data['shorts_estimated_seconds']}s)")
+    except Exception as e:
+        print(f"  Shorts script generation failed: {e} -- skipping Shorts")
+        script_data["shorts_script"] = None
+    return script_data
 
 def audit_bias(script_data, max_retries=2):
-    # Pre-trim if over word limit -- prevents auditor receiving bloated script
+    # Pre-trim if over word limit
     if len(script_data["script"].split()) > WORD_SOFT_CAP:
         script_data = force_trim(script_data)
+
+    original_hook   = script_data["script"].split(".")[0]
+    prev_flag_count = None
 
     for i in range(max_retries):
         wc = len(script_data["script"].split())
@@ -652,7 +775,6 @@ def audit_bias(script_data, max_retries=2):
 
         raw = msg.content[0].text.strip()
 
-        # Handle empty response -- annotate and return rather than crash
         if not raw:
             print(f"  Bias audit returned empty -- annotating as unreviewed")
             script_data["bias_check"] = {
@@ -666,11 +788,11 @@ def audit_bias(script_data, max_retries=2):
             audit = json.loads(strip_fences(raw))
         except Exception as e:
             print(f"  Bias audit parse failed: {e}")
-            print(f"  Raw response was:\n{raw[:1000]}")
-            script_data["bias_audit"] = {
-                "passed":            False,
-                "completeness_note": "BIAS AUDIT FAILED -- parse error",
-                "reviewed":          False,
+            print(f"  Raw response was: {raw[:500]}")
+            script_data["bias_check"] = {
+                "passed":   False,
+                "flags":    ["AUDIT FAILED -- response could not be parsed"],
+                "reviewed": False,
             }
             return script_data
 
@@ -686,23 +808,46 @@ def audit_bias(script_data, max_retries=2):
             return script_data
 
         flags = audit.get("flags", [])
-        print(f"  Bias audit flagged {len(flags)} issues")
+        flag_count = len(flags)
+        print(f"  Bias audit flagged {flag_count} issues")
 
-        # Apply revision if it stays within the absolute ceiling (not just +15 words)
+        # Diminishing returns -- if flag count didn't improve, stop looping
+        if prev_flag_count is not None and flag_count >= prev_flag_count:
+            print(f"  Flags not reducing ({prev_flag_count} -> {flag_count}) -- accepting with annotation")
+            script_data["bias_check"] = {
+                "passed":   False,
+                "flags":    flags,
+                "reviewed": False,
+            }
+            return script_data
+        prev_flag_count = flag_count
+
+        # Apply revision only if it passes all three guards
         if audit.get("revised_script"):
-            new_wc = len(audit["revised_script"].split())
-            if new_wc <= WORD_SOFT_CAP:
-                script_data["script"] = audit["revised_script"]
-                print(f"  Revision applied ({new_wc} words)")
-            else:
-                # Revision pushed over ceiling -- keep original, annotate flags
-                print(f"  Revision bloated to {new_wc} words (>{WORD_SOFT_CAP}) -- keeping original, annotating flags")
+            new_wc       = len(audit["revised_script"].split())
+            revised_hook = audit["revised_script"].split(".")[0]
+
+            # Guard 1 -- word count
+            if new_wc > WORD_SOFT_CAP:
+                print(f"  Revision inflated to {new_wc} words -- keeping original")
                 script_data["bias_check"] = {
                     "passed":   False,
                     "flags":    flags,
                     "reviewed": False,
                 }
                 return script_data
+
+            # Guard 2 -- hook protection
+            if revised_hook.lower() != original_hook.lower():
+                print(f"  Auditor changed the hook -- restoring original hook")
+                # Keep the body of the revision but restore the original hook
+                revised_sentences = audit["revised_script"].split(". ")
+                original_sentences = script_data["script"].split(". ")
+                revised_sentences[0] = original_sentences[0]
+                audit["revised_script"] = ". ".join(revised_sentences)
+
+            script_data["script"] = audit["revised_script"]
+            print(f"  Revision applied ({len(audit['revised_script'].split())} words)")
 
     # Exhausted retries -- store flags for manual review
     script_data["bias_check"] = {
@@ -837,6 +982,8 @@ def run_scripting(candidates, account_type="history"):
         script_data = audit_bias(script_data)
 
     script_data = quality_check(script_data)
+    
+    script_data = write_shorts_script(script_data)
 
     # ── Slug-based paths ───────────────────────────────────────────────────────
     slug     = script_data["slug"]           # e.g. "2026-03-24_trump-greenland"
@@ -881,6 +1028,14 @@ def run_scripting(candidates, account_type="history"):
         f.write(f"{script_data['title']}\n\n{script_data['script']}")
 
     upload_file(local_txt, "scripts", folder_id=script_folder_id)
+
+# Shorts plain text version
+    if script_data.get("shorts_script"):
+        local_shorts_txt = os.path.join(slug_dir, f"script_{slug}_shorts.txt")
+        with open(local_shorts_txt, "w", encoding="utf-8") as f:
+            f.write(f"{script_data['title']} #Shorts\n\n")
+            f.write(script_data["shorts_script"])
+        upload_file(local_shorts_txt, "scripts", folder_id=script_folder_id)
 
     return script_data, fid
 

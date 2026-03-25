@@ -13,7 +13,7 @@ FOLDERS = {
     "stories":   "1ZuCmxYRmYQwbMoMTIIqntvc0zMAd6aqa",
     "scripts":   "1W-wvDHynt_m4MSPAXDAY-j7CsGiCq93L",
     "images":    "14RFZr08yyxoGHaX0vLJaA8HjhBnFPMh0",
-    "clips":     "14RFZr08yyxoGHaX0vLJaA8HjhBnFPMh0",
+    "clips":     "1JNVMehfRq4-8NdXWhDCw-eUD5um6L9iC",
     "audio":     "1zn8eH2vh3IQ_2dVNmn7EpA8yr5buXDog",
     "pending":   "1NU3EkuQKibOF-dx6KzoiL8zx_jYajFkg",
     "captions":  "1lmT4b92i9DY6Lixqrv1TYUmaPKgWez-G",
