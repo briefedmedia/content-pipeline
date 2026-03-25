@@ -34,6 +34,18 @@ def run_phase1(account_type="news"):
     today      = datetime.date.today().isoformat()
     server_url = os.getenv("SERVER_URL", "https://your-app.railway.app")
 
+    # Upload candidates to Drive so Railway can load them for Phase 2
+    import json
+    from drive import upload_file, get_or_create_story_folder
+    candidates_filename = f"candidates_{today}.json"
+    candidates_local    = os.path.join(TMP, today, candidates_filename)
+    os.makedirs(os.path.join(TMP, today), exist_ok=True)
+    with open(candidates_local, "w") as f:
+        json.dump({"candidates": qualified}, f, indent=2)
+    story_folder = get_or_create_story_folder(today, "stories")
+    upload_file(candidates_local, "stories", candidates_filename, folder_id=story_folder)
+    print(f"Candidates uploaded to Drive/01_stories/{today}/")
+
     notify_stories_ready(
         candidates          = qualified,
         date                = today,
@@ -62,8 +74,31 @@ def run_phase2_for_story(date, story_index, account_type="news"):
     from notify   import notify_preview_ready
     from config   import TMP, MIN_EXPLAINABILITY_SCORE
 
-    # discover.py saves candidates into TMP/<date>/candidates_<date>.json
+    # Load candidates -- from local TMP if available, otherwise download from Drive
     candidates_path = os.path.join(TMP, date, f"candidates_{date}.json")
+    if not os.path.exists(candidates_path):
+        # Not found locally -- download from Drive (Railway execution path)
+        from drive import download_file, get_or_create_story_folder
+        os.makedirs(os.path.join(TMP, date), exist_ok=True)
+        folder_id = get_or_create_story_folder(date, "stories")
+        from drive import get_service
+        service = get_service()
+        results = service.files().list(
+            q=(f'"{folder_id}" in parents and '
+               f'name = "candidates_{date}.json" and trashed = false'),
+            fields="files(id, name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        ).execute()
+        files = results.get("files", [])
+        if not files:
+            raise FileNotFoundError(
+                f"candidates_{date}.json not found locally or in Drive. "
+                f"Run Phase 1 first."
+            )
+        download_file(files[0]["id"], candidates_path)
+        print(f"Downloaded candidates from Drive for {date}")
+
     with open(candidates_path, encoding="utf-8") as f:
         data = json.load(f)
 
