@@ -43,7 +43,7 @@ def run_phase1(account_type="news"):
 
     print(f"Phase 1 complete. {len(qualified)} stories sent for approval.")
     print(f"Auto-selects story #1 in 2 hours if no response.")
-    log_job({"phase": "1", "status": "success", "candidates": len(qualified)})
+    log_job(account_type, "phase1", status="success")
 
 
 def run_phase2_for_story(date, story_index, account_type="news"):
@@ -93,13 +93,7 @@ def run_phase2_for_story(date, story_index, account_type="news"):
 
     notify_preview_ready(script_data["title"], account_type)
 
-    log_job({
-        "phase":        "2",
-        "status":       "success",
-        "title":        script_data["title"],
-        "story_index":  story_index,
-        "account_type": account_type,
-    })
+    log_job(account_type, "phase2", status="success")
 
 def run_phase2(account_type="history"):
     """Images + clips + silent preview. Runs immediately after Phase 1."""
