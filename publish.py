@@ -1,4 +1,3 @@
-```python
 # publish.py -- routes clean vs captioned per CAPTION_MODE config
 import os
 from config import CAPTION_MODE, get_next_optimal_time, AUTO_PUBLISH
@@ -69,4 +68,3 @@ def _build_tags(account_type):
     if account_type == "history":
         return base + ["history", "historyfacts", "historylesson"]
     return base + ["news", "currentevents", "nonpartisan"]
-```

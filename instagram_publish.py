@@ -64,13 +64,3 @@ def upload_to_instagram(public_video_url, caption):
     media_id = publish_resp.json()["id"]
     print(f"  Instagram: published (media_id: {media_id})")
     return media_id
-```
-
-Add these to `.env` when you get API access — leave them empty for now:
-```
-TIKTOK_ACCESS_TOKEN=
-YOUTUBE_CLIENT_ID=
-YOUTUBE_CLIENT_SECRET=
-YOUTUBE_REFRESH_TOKEN=
-INSTAGRAM_ACCESS_TOKEN=
-INSTAGRAM_ACCOUNT_ID=
