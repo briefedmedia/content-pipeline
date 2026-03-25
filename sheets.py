@@ -56,15 +56,20 @@ def save_todays_script(script_data, account_type):
     print(f"[Sheets] Saved script for {account_type}: {script_data.get('title','')}")
     return True
 
-def load_todays_script(account_type):
-    """Load today's script_data dict (title, script, scenes, etc.)."""
+def load_todays_script(account_type, slug=None):
+    """Load today's script_data dict (title, script, scenes, etc.).
+    If slug is provided, matches the specific story by slug (supports multiple
+    stories of the same account_type on the same day).
+    """
     sheet = _get_sheet()
     today = datetime.date.today().isoformat()
-    rows = sheet.get_all_values()
+    rows  = sheet.get_all_values()
     for row in reversed(rows):
         if len(row) >= 5 and row[1] == today and row[2] == account_type and row[3] == "script":
-            return json.loads(row[4])
-    raise ValueError(f"No script found for {account_type} on {today}")
+            data = json.loads(row[4])
+            if slug is None or data.get("slug") == slug:
+                return data
+    raise ValueError(f"No script found for {account_type} on {today}" + (f" slug={slug}" if slug else ""))
 
 # =========================
 # CLIPS SAVE / LOAD
@@ -93,8 +98,11 @@ def save_todays_clips(clip_paths, account_type):
     sheet.append_row([now, today, account_type, "clips", json.dumps(clip_records)])
     print(f"[Sheets] Saved {len(clip_records)} clip IDs for {account_type}")
 
-def load_todays_clips(account_type):
-    """Load today's clips, downloading from Drive into TMP/<slug>/ as needed."""
+def load_todays_clips(account_type, slug=None):
+    """Load today's clips, downloading from Drive into TMP/<slug>/ as needed.
+    If slug is provided, matches the specific story by slug subdir (supports
+    multiple stories of the same account_type on the same day).
+    """
     from drive import download_file
     sheet = _get_sheet()
     today = datetime.date.today().isoformat()
@@ -102,10 +110,12 @@ def load_todays_clips(account_type):
     clip_records = None
     for row in reversed(rows):
         if len(row) >= 5 and row[1] == today and row[2] == account_type and row[3] == "clips":
-            clip_records = json.loads(row[4])
-            break
+            records = json.loads(row[4])
+            if slug is None or (records and records[0].get("subdir", "").startswith(slug)):
+                clip_records = records
+                break
     if not clip_records:
-        raise ValueError(f"No clips found for {account_type} on {today}")
+        raise ValueError(f"No clips found for {account_type} on {today}" + (f" slug={slug}" if slug else ""))
     clip_paths = []
     for c in clip_records:
         subdir = c.get("subdir", "")

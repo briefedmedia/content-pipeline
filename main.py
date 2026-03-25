@@ -121,13 +121,13 @@ def run_phase2(account_type="history"):
     finally:
         log_job(account_type, "phase2", status=job.get("status", "error"))
 
-def run_phase3(account_type="history", trigger="cron"):
+def run_phase3(account_type="history", trigger="cron", slug=None):
     """Audio + assembly + publish. Triggered by file watcher or fallback cron."""
     job = {"phase": "3", "account": account_type, "trigger": trigger}
     try:
-        script_data = load_todays_script(account_type)
+        script_data = load_todays_script(account_type, slug=slug)
         slug        = script_data["slug"]
-        clip_paths  = load_todays_clips(account_type)
+        clip_paths  = load_todays_clips(account_type, slug=slug)
         if trigger == "file_watcher":
             send_notification(
                 title="Recording detected -- production starting",
@@ -154,10 +154,11 @@ if __name__ == "__main__":
     parser.add_argument("phase", choices=["1", "2", "3", "breaking", "recap"])
     parser.add_argument("account", nargs="?", default="history")
     parser.add_argument("--trigger", default="cron")
+    parser.add_argument("--slug",    default=None)
     args = parser.parse_args()
 
     if   args.phase == "1":        run_phase1(args.account)
     elif args.phase == "2":        run_phase2(args.account)
-    elif args.phase == "3":        run_phase3(args.account, args.trigger)
+    elif args.phase == "3":        run_phase3(args.account, args.trigger, args.slug)
     elif args.phase == "breaking": from breaking import run_breaking; run_breaking()
     elif args.phase == "recap":    from recap import run_weekly_recap; run_weekly_recap()
