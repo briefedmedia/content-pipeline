@@ -1,7 +1,17 @@
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+import os, tempfile
 
-SERVICE_ACCOUNT_FILE = "service_account.json"
+def _get_service_account_file():
+    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if json_content:
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        tmp.write(json_content)
+        tmp.close()
+        return tmp.name
+    return "service_account.json"
+
+SERVICE_ACCOUNT_FILE = _get_service_account_file()
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 FOLDER_ID = "1ZuCmxYRmYQwbMoMTIIqntvc0zMAd6aqa"
 

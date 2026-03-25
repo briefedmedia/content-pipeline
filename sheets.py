@@ -8,13 +8,24 @@ from google.oauth2.service_account import Credentials
 import datetime
 import json
 import os
+import tempfile
 from config import TMP
 
-SERVICE_ACCOUNT_FILE = "service_account.json"
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
+
+def _get_service_account_file():
+    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if json_content:
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        tmp.write(json_content)
+        tmp.close()
+        return tmp.name
+    return "service_account.json"
+
+SERVICE_ACCOUNT_FILE = _get_service_account_file()
 
 _sheet = None
 
