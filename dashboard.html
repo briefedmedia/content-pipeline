@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Briefed Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080b0f;
+  --surface: #0f1318;
+  --surface2: #161c24;
+  --border: #1e2a38;
+  --accent: #00d4ff;
+  --accent2: #ff6b35;
+  --green: #00e87a;
+  --yellow: #ffd166;
+  --red: #ff4757;
+  --muted: #4a5568;
+  --text: #e2e8f0;
+  --text2: #8899aa;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Glow orbs */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat 8s ease-in-out infinite;
+}
+.orb1 { width: 400px; height: 400px; background: rgba(0,212,255,0.06); top: -100px; right: -100px; }
+.orb2 { width: 300px; height: 300px; background: rgba(255,107,53,0.05); bottom: 10%; left: -80px; animation-delay: -4s; }
+
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-30px); }
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32px 0 48px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+}
+
+.logo {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.logo-mark {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(0,212,255,0.4);
+}
+
+.logo-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,232,122,0.08);
+  border: 1px solid rgba(0,232,122,0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 2px;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* Section labels */
+.section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Today's pipeline flow */
+.pipeline-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 48px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.phase-block {
+  flex: 1;
+  padding: 24px 20px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.phase-block:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 12px solid var(--border);
+  z-index: 2;
+}
+
+.phase-block:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.phase-block.done { background: rgba(0,232,122,0.04); }
+.phase-block.active { background: rgba(0,212,255,0.06); }
+.phase-block.waiting { background: rgba(255,209,102,0.04); }
+.phase-block.error { background: rgba(255,71,87,0.06); }
+.phase-block.idle { background: transparent; }
+
+.phase-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 4px;
+  opacity: 0.15;
+}
+
+.phase-block.done .phase-num { color: var(--green); opacity: 0.3; }
+.phase-block.active .phase-num { color: var(--accent); opacity: 0.4; }
+.phase-block.waiting .phase-num { color: var(--yellow); opacity: 0.3; }
+.phase-block.error .phase-num { color: var(--red); opacity: 0.3; }
+
+.phase-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: var(--text2);
+}
+
+.phase-status {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.phase-block.done .phase-status { color: var(--green); }
+.phase-block.active .phase-status { color: var(--accent); }
+.phase-block.waiting .phase-status { color: var(--yellow); }
+.phase-block.error .phase-status { color: var(--red); }
+.phase-block.idle .phase-status { color: var(--muted); }
+
+.phase-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.phase-indicator {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.phase-block.done .phase-indicator { background: var(--green); }
+.phase-block.active .phase-indicator { background: var(--accent); animation: pulse 1.5s infinite; }
+.phase-block.waiting .phase-indicator { background: var(--yellow); animation: pulse 2s infinite; }
+.phase-block.error .phase-indicator { background: var(--red); }
+.phase-block.idle .phase-indicator { background: var(--border); }
+
+/* Story cards */
+.stories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.story-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+  cursor: default;
+  animation: fadeUp 0.4s ease both;
+}
+
+.story-card:hover {
+  border-color: rgba(0,212,255,0.3);
+  transform: translateY(-2px);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.story-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 12px 0 0 12px;
+}
+
+.story-card.score-9 { border-color: rgba(0,232,122,0.2); }
+.story-card.score-9::before { background: var(--green); }
+.story-card.score-8::before { background: var(--accent); }
+.story-card.score-7::before { background: var(--yellow); }
+
+.story-rank {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  color: var(--border);
+  position: absolute;
+  right: 16px;
+  top: 8px;
+  line-height: 1;
+}
+
+.story-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.score-9 .story-score { background: rgba(0,232,122,0.1); color: var(--green); border: 1px solid rgba(0,232,122,0.2); }
+.score-8 .story-score { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+.score-7 .story-score { background: rgba(255,209,102,0.1); color: var(--yellow); border: 1px solid rgba(255,209,102,0.2); }
+
+.story-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  color: var(--text);
+  padding-right: 40px;
+}
+
+.story-hook {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.5;
+  font-style: italic;
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+  margin-top: 8px;
+}
+
+.story-stages {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.stage-pip {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.stage-pip.done { background: var(--green); }
+.stage-pip.active { background: var(--accent); }
+.stage-pip.active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+/* Error section */
+.error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 48px;
+}
+
+.error-item {
+  background: rgba(255,71,87,0.05);
+  border: 1px solid rgba(255,71,87,0.15);
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.error-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(255,71,87,0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.error-phase {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 4px;
+}
+
+.error-msg {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.4;
+}
+
+.error-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* Search */
+.search-wrap {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 48px 14px 18px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--muted); }
+
+.search-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+/* History timeline */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.history-day:hover { border-color: rgba(0,212,255,0.2); }
+
+.history-day-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  cursor: pointer;
+  gap: 16px;
+}
+
+.history-date {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text2);
+  min-width: 100px;
+}
+
+.history-title {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+  color: var(--text);
+}
+
+.history-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.pill {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.pill-success { background: rgba(0,232,122,0.1); color: var(--green); border: 1px solid rgba(0,232,122,0.15); }
+.pill-error { background: rgba(255,71,87,0.1); color: var(--red); border: 1px solid rgba(255,71,87,0.15); }
+.pill-pending { background: rgba(255,209,102,0.1); color: var(--yellow); border: 1px solid rgba(255,209,102,0.15); }
+
+.history-expand {
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.history-day.open .history-expand { transform: rotate(180deg); }
+
+.history-detail {
+  display: none;
+  padding: 0 20px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.history-day.open .history-detail { display: block; }
+
+.history-mini-flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.mini-phase {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+}
+
+.mini-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mini-arrow {
+  color: var(--border);
+  font-size: 14px;
+}
+
+/* Loading state */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* Empty state */
+.empty {
+  text-align: center;
+  padding: 48px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+/* Stat bar */
+.stat-bar {
+  display: flex;
+  gap: 1px;
+  margin-bottom: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.stat-block {
+  flex: 1;
+  background: var(--surface);
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+}
+
+.stat-block:first-child { border-radius: 12px 0 0 12px; }
+.stat-block:last-child { border-radius: 0 12px 12px 0; }
+
+.stat-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-block:nth-child(1) .stat-val { color: var(--accent); }
+.stat-block:nth-child(2) .stat-val { color: var(--green); }
+.stat-block:nth-child(3) .stat-val { color: var(--yellow); }
+.stat-block:nth-child(4) .stat-val { color: var(--red); }
+
+.stat-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Refresh btn */
+.refresh-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+.refresh-btn.spinning .refresh-icon { animation: spin 0.8s linear infinite; }
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="container">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">BRIEFED</div>
+      <div class="logo-sub">Pipeline Control</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="refresh-btn" onclick="loadAll()">
+        <span class="refresh-icon">↻</span>
+        <span>REFRESH</span>
+      </button>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        LIVE
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stat-bar" id="statBar">
+    <div class="stat-block"><div class="stat-val" id="statRuns">—</div><div class="stat-label">Runs This Week</div></div>
+    <div class="stat-block"><div class="stat-val" id="statSuccess">—</div><div class="stat-label">Successful</div></div>
+    <div class="stat-block"><div class="stat-val" id="statPending">—</div><div class="stat-label">Awaiting Input</div></div>
+    <div class="stat-block"><div class="stat-val" id="statErrors">—</div><div class="stat-label">Errors</div></div>
+  </div>
+
+  <!-- Today's pipeline -->
+  <div class="section-label">Today's Pipeline — <span id="todayDate" style="color:var(--text2)"></span></div>
+
+  <div class="pipeline-flow" id="pipelineFlow">
+    <div class="phase-block idle">
+      <div class="phase-indicator"></div>
+      <div class="phase-num">1</div>
+      <div class="phase-name">Discovery</div>
+      <div class="phase-status">Loading...</div>
+    </div>
+    <div class="phase-block idle">
+      <div class="phase-indicator"></div>
+      <div class="phase-num">2</div>
+      <div class="phase-name">Production</div>
+      <div class="phase-status">Loading...</div>
+    </div>
+    <div class="phase-block idle">
+      <div class="phase-indicator"></div>
+      <div class="phase-num">3</div>
+      <div class="phase-name">Assembly</div>
+      <div class="phase-status">Loading...</div>
+    </div>
+    <div class="phase-block idle">
+      <div class="phase-indicator"></div>
+      <div class="phase-num">✓</div>
+      <div class="phase-name">Published</div>
+      <div class="phase-status">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Today's stories -->
+  <div class="section-label">Today's Stories</div>
+  <div class="stories-grid" id="storiesGrid">
+    <div class="loading"><div class="loading-spinner"></div><div class="loading-text">Fetching stories</div></div>
+  </div>
+
+  <!-- Errors -->
+  <div id="errorsSection" style="display:none;">
+    <div class="section-label">Errors Requiring Attention</div>
+    <div class="error-list" id="errorList"></div>
+  </div>
+
+  <!-- History -->
+  <div class="section-label" style="margin-top:48px;">Past 7 Days</div>
+  <div class="search-wrap">
+    <input type="text" class="search-input" id="searchInput" placeholder="Search by date (2026-03-25) or story title..." oninput="filterHistory()">
+    <span class="search-icon">⌕</span>
+  </div>
+  <div class="history-list" id="historyList">
+    <div class="loading"><div class="loading-spinner"></div><div class="loading-text">Loading history</div></div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function fmtTime(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch { return iso; }
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  } catch { return iso; }
+}
+
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ── Load pipeline data ─────────────────────────────────────────────────────
+
+async function loadAll() {
+  const btn = document.querySelector('.refresh-btn');
+  btn.classList.add('spinning');
+  document.getElementById('todayDate').textContent = fmtDate(today());
+
+  try {
+    const [statusRes, candidatesRes, historyRes] = await Promise.allSettled([
+      fetch(`${API}/status`),
+      fetch(`${API}/candidates/today`),
+      fetch(`${API}/pipeline/history`)
+    ]);
+
+    const status = statusRes.status === 'fulfilled' && statusRes.value.ok
+      ? await statusRes.value.json() : {};
+
+    const candidates = candidatesRes.status === 'fulfilled' && candidatesRes.value.ok
+      ? await candidatesRes.value.json() : [];
+
+    const history = historyRes.status === 'fulfilled' && historyRes.value.ok
+      ? await historyRes.value.json() : [];
+
+    renderPipeline(status);
+    renderStories(candidates);
+    renderErrors(status.errors || []);
+    renderHistory(history);
+    renderStats(status, history);
+
+  } catch(e) {
+    console.error(e);
+  }
+  btn.classList.remove('spinning');
+}
+
+// ── Render pipeline flow ───────────────────────────────────────────────────
+
+function renderPipeline(status) {
+  const phases = [
+    {
+      num: '1', name: 'Discovery',
+      state: status.phase1 || 'idle',
+      detail: status.phase1 === 'done' ? `${status.story_count || 0} stories found` :
+              status.phase1 === 'waiting' ? 'Awaiting your approval tap' :
+              status.phase1 === 'error' ? 'Discovery failed' : 'Not yet run',
+      time: status.phase1_time
+    },
+    {
+      num: '2', name: 'Production',
+      state: status.phase2 || 'idle',
+      detail: status.phase2 === 'done' ? 'Images, clips, preview ready' :
+              status.phase2 === 'active' ? 'Generating visuals...' :
+              status.phase2 === 'waiting' ? 'Drop your VO recording' :
+              status.phase2 === 'error' ? 'Production failed' : 'Waiting for Phase 1',
+      time: status.phase2_time
+    },
+    {
+      num: '3', name: 'Assembly',
+      state: status.phase3 || 'idle',
+      detail: status.phase3 === 'done' ? `${status.duration || ''}s video ready` :
+              status.phase3 === 'active' ? 'Assembling final video...' :
+              status.phase3 === 'error' ? 'Assembly failed' : 'Waiting for VO',
+      time: status.phase3_time
+    },
+    {
+      num: '✓', name: 'Published',
+      state: status.published ? 'done' : 'idle',
+      detail: status.published ? 'Live on platforms' : 'Auto-publish disabled',
+      time: status.publish_time
+    }
+  ];
+
+  document.getElementById('pipelineFlow').innerHTML = phases.map(p => `
+    <div class="phase-block ${p.state}">
+      <div class="phase-indicator"></div>
+      <div class="phase-num">${p.num}</div>
+      <div class="phase-name">${p.name}</div>
+      <div class="phase-status">${p.detail}</div>
+      ${p.time ? `<div class="phase-time">${fmtTime(p.time)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── Render stories ─────────────────────────────────────────────────────────
+
+function renderStories(candidates) {
+  const el = document.getElementById('storiesGrid');
+  if (!candidates || !candidates.length) {
+    el.innerHTML = '<div class="empty">No stories found for today yet.<br>Phase 1 runs at 17:00 UTC.</div>';
+    return;
+  }
+
+  el.innerHTML = candidates.map((s, i) => {
+    const score = s.score || s.explainability_score || 0;
+    const scoreClass = score >= 9 ? 'score-9' : score >= 8 ? 'score-8' : 'score-7';
+    const stages = s.stages || { p1: true, p2: false, p3: false };
+    return `
+    <div class="story-card ${scoreClass}" style="animation-delay:${i * 0.06}s">
+      <div class="story-rank">${i + 1}</div>
+      <div class="story-score">${score}/10</div>
+      <div class="story-title">${s.title || 'Untitled'}</div>
+      ${s.hook ? `<div class="story-hook">${s.hook.slice(0, 120)}${s.hook.length > 120 ? '…' : ''}</div>` : ''}
+      <div class="story-stages">
+        <div class="stage-pip ${stages.p1 ? 'done' : ''}"></div>
+        <div class="stage-pip ${stages.p2 === 'active' ? 'active' : stages.p2 ? 'done' : ''}"></div>
+        <div class="stage-pip ${stages.p3 === 'active' ? 'active' : stages.p3 ? 'done' : ''}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render errors ──────────────────────────────────────────────────────────
+
+function renderErrors(errors) {
+  const section = document.getElementById('errorsSection');
+  const list = document.getElementById('errorList');
+  if (!errors || !errors.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = errors.map(e => `
+    <div class="error-item">
+      <div class="error-icon">⚠</div>
+      <div>
+        <div class="error-phase">Phase ${e.phase} — ${e.account || 'news'}</div>
+        <div class="error-msg">${e.message || e.error || 'Unknown error'}</div>
+        <div class="error-time">${fmtTime(e.time)}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Render history ─────────────────────────────────────────────────────────
+
+let historyData = [];
+
+function renderHistory(data) {
+  historyData = data || [];
+  filterHistory();
+}
+
+function filterHistory() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = q
+    ? historyData.filter(d =>
+        d.date?.includes(q) ||
+        d.title?.toLowerCase().includes(q) ||
+        d.stories?.some(s => s.title?.toLowerCase().includes(q))
+      )
+    : historyData;
+
+  const el = document.getElementById('historyList');
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">No results found</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map((day, i) => {
+    const p1 = day.phase1_status;
+    const p2 = day.phase2_status;
+    const p3 = day.phase3_status;
+    const haserr = [p1,p2,p3].includes('error');
+    const allDone = p3 === 'success';
+
+    const pillClass = haserr ? 'pill-error' : allDone ? 'pill-success' : 'pill-pending';
+    const pillText = haserr ? 'ERROR' : allDone ? 'COMPLETE' : 'PARTIAL';
+
+    return `
+    <div class="history-day" id="hday${i}">
+      <div class="history-day-header" onclick="toggleDay(${i})">
+        <div class="history-date">${fmtDate(day.date)}</div>
+        <div class="history-title">${day.title || 'No story selected'}</div>
+        <div class="history-pills">
+          <div class="pill ${pillClass}">${pillText}</div>
+        </div>
+        <div class="history-expand">▾</div>
+      </div>
+      <div class="history-detail">
+        <div class="history-mini-flow">
+          <div class="mini-phase">
+            <div class="mini-dot" style="background:${p1==='success'?'var(--green)':p1==='error'?'var(--red)':'var(--border)'}"></div>
+            <span style="color:var(--text2);font-size:11px;">Phase 1</span>
+            ${p1 ? `<span class="pill ${p1==='success'?'pill-success':'pill-error'}">${p1.toUpperCase()}</span>` : ''}
+          </div>
+          <span class="mini-arrow">→</span>
+          <div class="mini-phase">
+            <div class="mini-dot" style="background:${p2==='success'?'var(--green)':p2==='error'?'var(--red)':'var(--border)'}"></div>
+            <span style="color:var(--text2);font-size:11px;">Phase 2</span>
+            ${p2 ? `<span class="pill ${p2==='success'?'pill-success':'pill-error'}">${p2.toUpperCase()}</span>` : ''}
+          </div>
+          <span class="mini-arrow">→</span>
+          <div class="mini-phase">
+            <div class="mini-dot" style="background:${p3==='success'?'var(--green)':p3==='error'?'var(--red)':'var(--border)'}"></div>
+            <span style="color:var(--text2);font-size:11px;">Phase 3</span>
+            ${p3 ? `<span class="pill ${p3==='success'?'pill-success':'pill-error'}">${p3.toUpperCase()}</span>` : ''}
+          </div>
+        </div>
+        ${day.stories?.length ? `
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+            ${day.stories.map(s => `
+              <div style="font-size:12px;color:var(--text2);padding:6px 0;border-top:1px solid var(--border);">
+                <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:10px;margin-right:8px;">${s.score || '?'}/10</span>
+                ${s.title}
+              </div>`).join('')}
+          </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDay(i) {
+  document.getElementById(`hday${i}`).classList.toggle('open');
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+
+function renderStats(status, history) {
+  const runs = history.filter(d => d.phase1_status).length;
+  const successes = history.filter(d => d.phase3_status === 'success').length;
+  const errors = history.filter(d => [d.phase1_status,d.phase2_status,d.phase3_status].includes('error')).length;
+  const pending = history.filter(d => d.phase1_status === 'success' && d.phase3_status !== 'success' && !d.error).length;
+
+  document.getElementById('statRuns').textContent = runs;
+  document.getElementById('statSuccess').textContent = successes;
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statErrors').textContent = errors;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+
+document.getElementById('todayDate').textContent = fmtDate(today());
+loadAll();
+setInterval(loadAll, 60000); // auto-refresh every 60s
+</script>
+</body>
+</html>

@@ -36,6 +36,64 @@ def save_approvals(data):
     with open(APPROVALS_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
+@app.route("/")
+def dashboard():
+    return open("dashboard.html").read(), 200, {"Content-Type": "text/html"}
+
+
+@app.route("/candidates/today")
+def candidates_today():
+    import datetime
+    today = datetime.date.today().isoformat()
+    path  = os.path.join(TMP, today, f"candidates_{today}.json")
+    if not os.path.exists(path):
+        return jsonify([])
+    with open(path) as f:
+        data = json.load(f)
+    candidates = data.get("candidates", [])
+    out = []
+    for c in candidates:
+        hc    = c.get("historical_context", {})
+        score = hc.get("explainability_score", c.get("score", 0))
+        hook  = hc.get("suggested_hook", "")
+        out.append({"title": c.get("title", ""), "score": score, "hook": hook})
+    return jsonify(out)
+
+
+@app.route("/pipeline/history")
+def pipeline_history():
+    try:
+        from sheets import _get_sheet
+        import datetime
+        sheet = _get_sheet()
+        rows  = sheet.get_all_values()
+        today = datetime.date.today()
+        days  = {}
+        for row in rows:
+            if len(row) < 5: continue
+            date = row[0] if len(row[0]) == 10 else row[1][:10]
+            try:
+                d = datetime.date.fromisoformat(date)
+                if (today - d).days > 7: continue
+            except:
+                continue
+            if date not in days:
+                days[date] = {"date": date, "phase1_status": None,
+                              "phase2_status": None, "phase3_status": None,
+                              "title": "", "stories": []}
+            phase_str = row[3] if len(row) > 3 else ""
+            status    = row[4] if len(row) > 4 else ""
+            if "phase1" in phase_str or "Phase 1" in phase_str:
+                days[date]["phase1_status"] = status.lower()
+            elif "phase2" in phase_str or "Phase 2" in phase_str:
+                days[date]["phase2_status"] = status.lower()
+            elif "phase3" in phase_str or "Phase 3" in phase_str:
+                days[date]["phase3_status"] = status.lower()
+        return jsonify(sorted(days.values(), key=lambda x: x["date"], reverse=True))
+    except Exception as e:
+        return jsonify([])
+
+
 # --- Health check ---
 @app.route("/status")
 def status():
