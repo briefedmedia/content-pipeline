@@ -34,17 +34,7 @@ def run_phase1(account_type="news"):
     today      = datetime.date.today().isoformat()
     server_url = os.getenv("SERVER_URL", "https://your-app.railway.app")
 
-    # Upload candidates to Drive so Railway can load them for Phase 2
-    import json
-    from drive import upload_file, get_or_create_story_folder
-    candidates_filename = f"candidates_{today}.json"
-    candidates_local    = os.path.join(TMP, today, candidates_filename)
-    os.makedirs(os.path.join(TMP, today), exist_ok=True)
-    with open(candidates_local, "w") as f:
-        json.dump({"candidates": qualified}, f, indent=2)
-    story_folder = get_or_create_story_folder(today, "stories")
-    upload_file(candidates_local, "stories", candidates_filename, folder_id=story_folder)
-    print(f"Candidates uploaded to Drive/01_stories/{today}/")
+    # discover.py already uploads candidates_{today}.json to Drive -- no re-upload needed
 
     notify_stories_ready(
         candidates          = qualified,
