@@ -2,7 +2,11 @@
 import schedule, time, os
 
 def job(phase, account):
-    os.system(f"python main.py {phase} {account}")
+    cmd = f"python main.py {phase} {account}".strip()
+    print(f"[Scheduler] Running: {cmd}")
+    result = os.system(cmd)
+    if result != 0:
+        print(f"[Scheduler] WARNING: {cmd} exited with code {result} -- not retrying")
 
 # HOME DAYS (Sun=0, Mon=1, Tue=2) -- UTC times (EST+5)
 schedule.every().sunday.at("17:00").do(job, "1", "news")

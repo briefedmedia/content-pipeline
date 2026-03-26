@@ -46,13 +46,22 @@ def _get_sheet():
 # JOB LOGGING
 # =========================
 
-def log_job(account_type, phase, status="success"):
-    """Log phase completion status."""
-    sheet = _get_sheet()
-    now = datetime.datetime.now().isoformat()
-    today = datetime.date.today().isoformat()
-    sheet.append_row([now, today, account_type, f"phase{phase}_status", status])
-    print(f"[Sheets] Logged: {account_type} phase {phase} = {status}")
+def log_job(account_type, phase=None, status="success", note=""):
+    try:
+        sheet = _get_sheet()
+        now   = datetime.datetime.now()
+        row   = [
+            now.strftime("%Y-%m-%d"),
+            now.strftime("%I:%M %p"),
+            str(account_type).upper(),
+            f"Phase {phase}",
+            str(status).upper(),
+            note[:200] if note else "",
+        ]
+        sheet.append_row(row, value_input_option="RAW")
+        print(f"  [Sheets] {row[0]} {row[1]} | {row[2]} {row[3]} | {row[4]}")
+    except Exception as e:
+        print(f"  [Sheets] log_job failed (non-fatal): {e}")
 
 # =========================
 # SCRIPT SAVE / LOAD
