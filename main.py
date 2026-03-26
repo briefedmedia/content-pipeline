@@ -45,7 +45,7 @@ def run_phase1(account_type="news"):
 
     print(f"Phase 1 complete. {len(qualified)} stories sent for approval.")
     print(f"Auto-selects story #1 in 2 hours if no response.")
-    log_job(account_type, "phase1", status="success")
+    log_job(account_type, "1", status="success")
 
 
 def run_phase2_for_story(date, story_index, account_type="news"):
@@ -118,7 +118,7 @@ def run_phase2_for_story(date, story_index, account_type="news"):
 
     notify_preview_ready(script_data["title"], account_type)
 
-    log_job(account_type, "phase2", status="success")
+    log_job(account_type, "2", status="success")
 
 def run_phase2(account_type="history"):
     """Images + clips + silent preview. Runs immediately after Phase 1."""
@@ -144,7 +144,7 @@ def run_phase2(account_type="history"):
     except Exception:
         job.update({"status": "error", "error": traceback.format_exc()})
     finally:
-        log_job(account_type, "phase2", status=job.get("status", "error"))
+        log_job(account_type, "2", status=job.get("status", "error"))
 
 def run_phase3(account_type="history", trigger="cron", slug=None):
     """Audio + assembly + publish. Triggered by file watcher or fallback cron."""
@@ -172,7 +172,7 @@ def run_phase3(account_type="history", trigger="cron", slug=None):
     except Exception:
         job.update({"status": "error", "error": traceback.format_exc()})
     finally:
-        log_job(account_type, "phase3", status=job.get("status", "error"))
+        log_job(account_type, "3", status=job.get("status", "error"))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
