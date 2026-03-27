@@ -42,48 +42,57 @@ def get_service():
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     return build("drive", "v3", credentials=creds)
 
-def get_or_create_story_folder(slug, category):
-    """Find or create a slug-named subfolder inside the given category folder.
-
-    For story-specific files:  category = "scripts" / "images" / "clips" / etc.
-    For daily discovery files: pass the date string as slug, category = "stories"
-
-    Returns the Drive folder ID for that subfolder.
-    All API calls use supportsAllDrives=True.
-    """
-    service   = get_service()
-    parent_id = FOLDERS[category]
-
-    # Search for an existing subfolder with this exact name
+def _get_or_create_folder(service, parent_id, name):
+    """Find or create a named subfolder inside parent_id. Returns folder ID."""
     results = service.files().list(
-        q=(
-            f'"{parent_id}" in parents and '
-            f'name = "{slug}" and '
-            f'mimeType = "application/vnd.google-apps.folder" and '
-            f'trashed = false'
-        ),
-        fields                    = "files(id, name)",
-        supportsAllDrives         = True,
-        includeItemsFromAllDrives = True,
+        q=(f'"{parent_id}" in parents and name = "{name}" and '
+           f'mimeType = "application/vnd.google-apps.folder" and trashed = false'),
+        fields="files(id, name)",
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
     ).execute()
-
     files = results.get("files", [])
     if files:
         return files[0]["id"]
-
-    # Subfolder does not exist yet — create it
-    meta   = {
-        "name":     slug,
-        "mimeType": "application/vnd.google-apps.folder",
-        "parents":  [parent_id],
-    }
     folder = service.files().create(
-        body              = meta,
-        fields            = "id",
-        supportsAllDrives = True,
+        body={"name": name, "mimeType": "application/vnd.google-apps.folder",
+              "parents": [parent_id]},
+        fields="id",
+        supportsAllDrives=True,
     ).execute()
-    print(f"Created Drive subfolder: {category}/{slug} (id: {folder['id']})")
+    print(f"  Created Drive folder: {name} (id: {folder['id']})")
     return folder["id"]
+
+
+def get_or_create_story_folder(slug, category):
+    """Find or create a two-level subfolder: category_root / YYYY-MM-DD / slug-keywords /
+
+    For the "pending" category (drop zone root), returns FOLDERS["pending"] directly.
+    Use get_or_create_pending_story_folder(slug) for story-specific pending subfolders.
+
+    slug format: YYYY-MM-DD_keyword-keyword  (e.g. 2026-03-24_trump-greenland)
+    date is extracted from the first 10 characters of the slug.
+    """
+    if category == "pending":
+        return FOLDERS["pending"]
+
+    service  = get_service()
+    root_id  = FOLDERS[category]
+    date     = slug[:10]          # "2026-03-24"
+    keywords = slug[11:] if len(slug) > 11 else slug   # "trump-greenland"
+
+    date_folder_id  = _get_or_create_folder(service, root_id, date)
+    story_folder_id = _get_or_create_folder(service, date_folder_id, keywords)
+    return story_folder_id
+
+
+def get_or_create_pending_story_folder(slug):
+    """Create a story-specific drop zone inside pending: pending / YYYY-MM-DD_slug /
+
+    This is where DROP_VO_HERE.txt and the user's VO recording will live.
+    """
+    service = get_service()
+    return _get_or_create_folder(service, FOLDERS["pending"], slug)
 
 def upload_file(local_path, folder_key, filename=None, folder_id=None):
     """Upload a file to Drive.
@@ -131,14 +140,47 @@ def list_files(folder_key):
     return results.get("files", [])
 
 def list_pending_recordings():
-    """List files in 05_audio/pending/ for the file watcher."""
-    service = get_service()
-    folder_id = FOLDERS["pending"]
+    """List all files inside pending/ and its story subfolders.
+
+    Returns each file with an extra 'parent_folder_id' field so the watcher
+    can delete DROP_VO_HERE.txt from the same subfolder after Phase 3 fires.
+    """
+    service    = get_service()
+    root_id    = FOLDERS["pending"]
+    all_files  = []
+
+    # 1. List direct children of pending/ (root-level drops)
     results = service.files().list(
-        q=f'"{folder_id}" in parents and trashed=false',
-        fields="files(id, name, createdTime)"
+        q=(f'"{root_id}" in parents and trashed=false and '
+           f'mimeType != "application/vnd.google-apps.folder"'),
+        fields="files(id, name, createdTime)",
+        supportsAllDrives=True, includeItemsFromAllDrives=True,
     ).execute()
-    return results.get("files", [])
+    for f in results.get("files", []):
+        f["parent_folder_id"] = root_id
+        all_files.append(f)
+
+    # 2. List subfolders of pending/
+    subfolders = service.files().list(
+        q=(f'"{root_id}" in parents and trashed=false and '
+           f'mimeType = "application/vnd.google-apps.folder"'),
+        fields="files(id, name)",
+        supportsAllDrives=True, includeItemsFromAllDrives=True,
+    ).execute().get("files", [])
+
+    # 3. List files inside each subfolder
+    for sub in subfolders:
+        sub_results = service.files().list(
+            q=(f'"{sub["id"]}" in parents and trashed=false and '
+               f'mimeType != "application/vnd.google-apps.folder"'),
+            fields="files(id, name, createdTime)",
+            supportsAllDrives=True, includeItemsFromAllDrives=True,
+        ).execute()
+        for f in sub_results.get("files", []):
+            f["parent_folder_id"] = sub["id"]
+            all_files.append(f)
+
+    return all_files
 
 def list_drive_clips(date, account_type):
     """List clip files for a given date and account type from the clips folder."""
