@@ -91,27 +91,29 @@ def send_notification(title, message, priority="normal"):
 # ── Phase 1 -- Discovery ───────────────────────────────────────────────────────
 
 def notify_stories_ready(candidates, date, server_url, auto_select_minutes=120):
-    """
-    Send one Pushover notification per story so each is tappable and clean.
-    First notification also includes the auto-select warning.
+    """Send one Pushover notification per story, well under the 512-char limit.
+
+    Title: "#N [score/10] title" (≤60 chars)
+    Message: hook teaser + approve URL + /stories link (≤300 chars total)
     """
     for i, s in enumerate(candidates):
         score = 0
         hook  = ""
         if s.get("historical_context"):
             score = s["historical_context"].get("explainability_score", 0)
-            hook  = s["historical_context"].get("suggested_hook", "")[:100]
+            hook  = s["historical_context"].get("suggested_hook", "")[:120]
 
-        approve_url = f"{server_url}/approve/{date}/{i}"
+        approve_url  = f"{server_url}/approve/{date}/{i}"
+        stories_url  = f"{server_url}/stories"
 
-        # First story gets the auto-select warning
-        footer = f"\nAuto-selects story #1 in {auto_select_minutes} mins if no response." if i == 0 else ""
-
-        send_notification(
-            title   = f"Story {i+1} of {len(candidates)} [{score}/10]: {s['title'][:50]}",
-            message = f"{hook}\n\nTap to approve:\n{approve_url}{footer}",
-            priority = "normal"
+        title   = f"#{i+1} [{score}/10] {s['title'][:45]}"
+        message = (
+            f"{hook}...\n\n"
+            f"Tap to approve:\n{approve_url}\n\n"
+            f"Full brief: {stories_url}"
         )
+
+        send_notification(title=title, message=message, priority="normal")
 
 
 def notify_story_approved(title, index, account_type):
