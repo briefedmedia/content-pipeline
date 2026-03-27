@@ -987,6 +987,126 @@ Return JSON only, no markdown fences:
         handle_breaking(story, result["urgency"], account_type)
 
 
+# ── PDF teleprompter ───────────────────────────────────────────────────────────
+
+def generate_script_pdf(script_data, slug_dir, account_type="news"):
+    """Generate a formatted teleprompter PDF using reportlab."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                     HRFlowable, Table, TableStyle)
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+    slug             = script_data["slug"]
+    title            = script_data["title"]
+    full_script      = script_data["script"]
+    word_count       = script_data.get("word_count", len(full_script.split()))
+    est_seconds      = script_data.get("estimated_seconds", word_count * 0.4)
+    scenes           = script_data.get("scenes", [])
+    date             = slug[:10]
+
+    pdf_path = os.path.join(slug_dir, f"script_{slug}_teleprompter.pdf")
+    doc = SimpleDocTemplate(pdf_path, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2.5*cm, bottomMargin=2.5*cm)
+
+    # Styles
+    header_style = ParagraphStyle("header", fontSize=9, textColor=colors.HexColor("#888888"),
+                                  fontName="Helvetica")
+    title_style  = ParagraphStyle("title", fontSize=20, fontName="Helvetica-Bold",
+                                  alignment=TA_CENTER, spaceAfter=6)
+    scene_hdr    = ParagraphStyle("scene_hdr", fontSize=9, fontName="Helvetica-Bold",
+                                  textColor=colors.HexColor("#555555"))
+    body_style   = ParagraphStyle("body", fontSize=14, fontName="Helvetica",
+                                  leading=22, spaceAfter=8)
+    footer_style = ParagraphStyle("footer", fontSize=9, textColor=colors.HexColor("#888888"),
+                                  alignment=TA_CENTER)
+
+    # Split script into scene chunks proportionally by word count
+    words = full_script.split()
+    n_scenes = max(len(scenes), 1)
+    chunk_size = max(len(words) // n_scenes, 1)
+    scene_texts = []
+    for i in range(n_scenes):
+        start = i * chunk_size
+        end   = start + chunk_size if i < n_scenes - 1 else len(words)
+        scene_texts.append(" ".join(words[start:end]))
+
+    # Per-scene timestamp offsets
+    def fmt_ts(seconds):
+        m, s = divmod(int(seconds), 60)
+        return f"{m}:{s:02d}"
+
+    secs_per_word = est_seconds / max(len(words), 1)
+
+    story_elements = []
+
+    # Page header (repeated via onFirstPage / onLaterPages via SimpleDocTemplate header)
+    hdr_left  = f"BRIEFED  |  {account_type.upper()}"
+    hdr_right = f"{date}  |  {word_count} words  |  est. {int(est_seconds)}s"
+    story_elements.append(
+        Table([[Paragraph(hdr_left, header_style), Paragraph(hdr_right, header_style)]],
+              colWidths=["60%", "40%"],
+              style=TableStyle([("ALIGN", (1,0), (1,0), "RIGHT"),
+                                ("BOTTOMPADDING", (0,0), (-1,-1), 8)]))
+    )
+    story_elements.append(HRFlowable(width="100%", thickness=0.5,
+                                     color=colors.HexColor("#cccccc")))
+    story_elements.append(Spacer(1, 0.4*cm))
+
+    # Title
+    story_elements.append(Paragraph(title, title_style))
+    story_elements.append(HRFlowable(width="100%", thickness=1,
+                                     color=colors.HexColor("#333333")))
+    story_elements.append(Spacer(1, 0.5*cm))
+
+    # Scenes
+    elapsed_words = 0
+    for i, scene in enumerate(scenes):
+        if isinstance(scene, dict):
+            section      = scene.get("section", f"scene{i+1}")
+            visual_label = scene.get("visual_label", "")
+        else:
+            section      = f"scene{i+1}"
+            visual_label = ""
+
+        ts = fmt_ts(elapsed_words * secs_per_word)
+        scene_text = scene_texts[i] if i < len(scene_texts) else ""
+        elapsed_words += len(scene_text.split())
+
+        label_left  = f"SCENE {i+1} — {section.upper()}"
+        if visual_label:
+            label_left += f"   |   {visual_label}"
+        label_right = f"[{ts}]"
+
+        story_elements.append(
+            Table([[Paragraph(label_left, scene_hdr), Paragraph(label_right, scene_hdr)]],
+                  colWidths=["75%", "25%"],
+                  style=TableStyle([("ALIGN", (1,0), (1,0), "RIGHT"),
+                                    ("BOTTOMPADDING", (0,0), (-1,-1), 2)]))
+        )
+        story_elements.append(Paragraph(scene_text, body_style))
+        story_elements.append(HRFlowable(width="100%", thickness=0.5,
+                                         color=colors.HexColor("#dddddd"),
+                                         spaceAfter=10))
+        story_elements.append(Spacer(1, 0.3*cm))
+
+    # Footer
+    story_elements.append(Spacer(1, 0.5*cm))
+    story_elements.append(Paragraph(
+        f"Record your VO and drop it in Drive/05_audio/pending/{slug}/",
+        footer_style))
+    story_elements.append(Paragraph(
+        f"Name your file: voiceover_{slug}_{account_type}.mp3",
+        footer_style))
+
+    doc.build(story_elements)
+    print(f"  PDF teleprompter: {os.path.basename(pdf_path)}")
+    return pdf_path
+
+
 # ── Main entry point ───────────────────────────────────────────────────────────
 
 def run_scripting(candidates, account_type="history"):
@@ -1063,13 +1183,20 @@ def run_scripting(candidates, account_type="history"):
 
     upload_file(local_txt, "scripts", folder_id=script_folder_id)
 
-# Shorts plain text version
+    # Shorts plain text version
     if script_data.get("shorts_script"):
         local_shorts_txt = os.path.join(slug_dir, f"script_{slug}_shorts.txt")
         with open(local_shorts_txt, "w", encoding="utf-8") as f:
             f.write(f"{script_data['title']} #Shorts\n\n")
             f.write(script_data["shorts_script"])
         upload_file(local_shorts_txt, "scripts", folder_id=script_folder_id)
+
+    # PDF teleprompter
+    try:
+        pdf_path = generate_script_pdf(script_data, slug_dir, account_type)
+        upload_file(pdf_path, "scripts", folder_id=script_folder_id)
+    except Exception as e:
+        print(f"  PDF generation failed (non-fatal): {e}")
 
     return script_data, fid
 
