@@ -390,7 +390,7 @@ let state = {
   approved:      new Set(),
   declined:      new Set(),
   autoCancelled: false,
-  autoTimestamp: null,
+  phase1Timestamp: null,
 };
 
 // ── Window expiry helper ───────────────────────────────────────────────────────
@@ -398,17 +398,27 @@ let state = {
 function isWindowExpired(phase1Timestamp) {
   if (!phase1Timestamp) return false;
   const end = new Date(phase1Timestamp).getTime() + 2 * 60 * 60 * 1000;
+  if (isNaN(end)) return false;
   return Date.now() > end;
 }
 
-// Returns 1–4 per the state machine spec
+function getWindowEnd(phase1Timestamp) {
+  if (!phase1Timestamp) return null;
+  const end = new Date(phase1Timestamp).getTime() + 2 * 60 * 60 * 1000;
+  if (isNaN(end)) return null;
+  return end;
+}
+
+// Returns 1–5 per the state machine spec
 function getAutoState() {
-  const expired   = isWindowExpired(state.autoTimestamp);
+  const approved  = (state.approved?.size || 0) > 0;
+  const expired   = isWindowExpired(state.phase1Timestamp);
   const cancelled = state.autoCancelled;
-  if (!expired && !cancelled) return 1; // window open, auto active
-  if (!expired &&  cancelled) return 2; // window open, cancelled
-  if ( expired && !cancelled) return 3; // expired, auto ran
-  return 4;                              // expired, was blocked
+  if (approved)                  return 5; // manually approved, auto irrelevant
+  if ( expired && !cancelled)    return 3; // expired, auto ran
+  if ( expired &&  cancelled)    return 4; // expired, was blocked
+  if (!expired && !cancelled)    return 1; // window open, auto active
+  return 2;                                // window open, cancelled
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -435,7 +445,7 @@ async function loadApprovalStatus() {
       state.approved      = new Set(d.approved || []);
       state.declined      = new Set(d.declined || []);
       state.autoCancelled = d.auto_cancelled || false;
-      state.autoTimestamp = d.timestamp || null;
+      state.phase1Timestamp = d.timestamp || null;
     }
   } catch(e) { console.error('Failed to load approval status', e); }
 }
@@ -453,9 +463,10 @@ function render() {
 
   const autoState = getAutoState();
   document.getElementById('autoLabel').textContent =
-    autoState === 1 ? '• Auto-select active'  :
-    autoState === 2 ? '• Manual mode'          :
-    autoState === 3 ? '• Auto-approved'        : '• Window closed';
+    autoState === 5 ? '• Approved'             :
+    autoState === 1 ? '• Auto-select active'   :
+    autoState === 2 ? '• Manual mode'           :
+    autoState === 3 ? '• Auto-approved'         : '• Window closed';
 
   renderAutoControl(autoState);
 
@@ -480,7 +491,18 @@ function render() {
 function renderAutoControl(autoState) {
   const area = document.getElementById('autoControlArea');
 
-  if (autoState === 1) {
+  if (autoState === 5) {
+    // STATE 5: manually approved — hide toggle, show green pill
+    stopCountdown();
+    updateTimerBadge(null);
+    const approvedIdx = [...state.approved][0];
+    const storyNum = approvedIdx + 1;
+    area.innerHTML = `
+      <div class="cancel-pill-wrap">
+        <div class="auto-done-pill">✓ Story ${storyNum} approved — auto-select inactive</div>
+      </div>`;
+
+  } else if (autoState === 1) {
     // Window open, auto active — yellow cancel button + ticking countdown
     area.innerHTML = `
       <div class="cancel-pill-wrap">
@@ -508,8 +530,8 @@ function renderAutoControl(autoState) {
     // Expired, auto ran — green read-only pill
     stopCountdown();
     updateTimerBadge(null);
-    const expiredAt = new Date(state.autoTimestamp).getTime() + 2 * 60 * 60 * 1000;
-    const timeStr = new Date(expiredAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const expiredAt = getWindowEnd(state.phase1Timestamp);
+    const timeStr = expiredAt ? new Date(expiredAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
     area.innerHTML = `
       <div class="cancel-pill-wrap">
         <div class="auto-done-pill">✓ Auto-approved at ${timeStr}</div>
@@ -680,20 +702,18 @@ async function toggleAutoSelect() {
 let countdownInterval = null;
 
 function startCountdown() {
-  // Don't restart if already running
-  if (countdownInterval) return;
-  if (!state.autoTimestamp) { updateTimerBadge(null); return; }
-  countdownInterval = setInterval(tickCountdown, 1000);
-  tickCountdown();
+  stopCountdown();
+  const end = getWindowEnd(state.phase1Timestamp);
+  if (!end) { updateTimerBadge(null); return; }
+  countdownInterval = setInterval(() => tickCountdown(end), 1000);
+  tickCountdown(end);
 }
 
 function stopCountdown() {
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 }
 
-function tickCountdown() {
-  if (!state.autoTimestamp) { stopCountdown(); return; }
-  const end    = new Date(state.autoTimestamp).getTime() + 2 * 60 * 60 * 1000;
+function tickCountdown(end) {
   const remain = Math.max(0, end - Date.now());
   if (remain <= 0) { stopCountdown(); render(); return; }
   const mins = Math.floor(remain / 60000);

@@ -1248,7 +1248,7 @@ let state = {
   pipelineStatus: {},
   history: [],
   autoCancelled: false,
-  phase1Time: null,
+  phase1Timestamp: null,
   countdownInterval: null,
 };
 
@@ -1309,10 +1309,11 @@ async function refreshAll() {
     if (approvalStatus) {
       state.approvals = approvalStatus;
       state.autoCancelled = approvalStatus.auto_cancelled || false;
-      state.phase1Time = approvalStatus.timestamp;
+      state.phase1Timestamp = approvalStatus.timestamp || null;
       updateCancelBtn();
     }
-    if (history) { state.history = history; renderHistory(); renderStats(); }
+    if (history) { state.history = history; renderHistory(); }
+    renderStats();
     if (status) { state.pipelineStatus = status; renderPipeline(); }
 
     renderCosts();
@@ -1334,7 +1335,7 @@ function renderPipeline() {
       state: s.phase1 || (state.candidates.length ? 'done' : 'idle'),
       detail: state.candidates.length ? `${state.candidates.length} stories found` :
               s.phase1 === 'error' ? 'Discovery failed' : 'Not yet run',
-      time: s.phase1_time || state.phase1Time
+      time: s.phase1_time || state.phase1Timestamp
     },
     {
       label: 'Production', num: '2',
@@ -1372,12 +1373,14 @@ function renderPipeline() {
     ${i < phases.length - 1 ? arrows : ''}
   `).join('');
 
-  // Show countdown only in STATE 1: window open, auto-select still active
-  const bar          = document.getElementById('countdownBar');
-  const showCountdown = state.candidates.length > 0
-    && !(state.approvals.approved || []).length
-    && !state.autoCancelled
-    && !isWindowExpired(state.phase1Time);
+  // Show countdown only when: candidates exist, none approved, auto not cancelled, window open
+  const bar = document.getElementById('countdownBar');
+  const showCountdown = (
+    state.candidates?.length > 0 &&
+    (state.approvals?.approved || []).length === 0 &&
+    !(state.approvals?.auto_cancelled) &&
+    !isWindowExpired(state.phase1Timestamp)
+  );
   if (showCountdown) {
     bar.classList.remove('hidden');
     startCountdown();
@@ -1408,15 +1411,24 @@ function renderPipeline() {
 
 // ── Countdown ──────────────────────────────────────────────────────────────
 
-function isWindowExpired(ts) {
-  if (!ts) return false;
-  return Date.now() > new Date(ts).getTime() + 2 * 60 * 60 * 1000;
+function isWindowExpired(phase1Timestamp) {
+  if (!phase1Timestamp) return false;
+  const end = new Date(phase1Timestamp).getTime() + 2 * 60 * 60 * 1000;
+  if (isNaN(end)) return false;
+  return Date.now() > end;
+}
+
+function getWindowEnd(phase1Timestamp) {
+  if (!phase1Timestamp) return null;
+  const end = new Date(phase1Timestamp).getTime() + 2 * 60 * 60 * 1000;
+  if (isNaN(end)) return null;
+  return end;
 }
 
 function startCountdown() {
   stopCountdown();
-  if (!state.phase1Time) return;
-  const end = new Date(state.phase1Time).getTime() + 2 * 60 * 60 * 1000;
+  const end = getWindowEnd(state.phase1Timestamp);
+  if (!end) return;
   state.countdownInterval = setInterval(() => {
     const rem = Math.max(0, end - Date.now());
     if (rem === 0) {
@@ -1534,7 +1546,7 @@ async function triggerPhase1() {
 
 async function cancelAutoSelect() {
   // Window already expired — nothing to toggle
-  if (isWindowExpired(state.phase1Time)) {
+  if (isWindowExpired(state.phase1Timestamp)) {
     toast('Auto-select window already closed', 'ℹ');
     return;
   }
@@ -1570,7 +1582,7 @@ async function cancelAutoSelect() {
 function updateCancelBtn() {
   const btn = document.getElementById('cancelAutoBtn');
   if (!btn) return;
-  const expired = isWindowExpired(state.phase1Time);
+  const expired = isWindowExpired(state.phase1Timestamp);
   if (expired) {
     btn.classList.add('cancel-auto-active');
     btn.querySelector('.ctrl-label').textContent = 'Window Closed';
@@ -1624,7 +1636,15 @@ function renderStats() {
   const h = state.history;
   document.getElementById('statRuns').textContent = h.filter(d => d.phase1_status).length;
   document.getElementById('statComplete').textContent = h.filter(d => d.phase3_status === 'success').length;
-  document.getElementById('statPending').textContent = h.filter(d => d.phase1_status === 'success' && d.phase3_status !== 'success').length;
+
+  // Live pending = total candidates minus approved minus declined today
+  const totalCandidates = state.candidates ? state.candidates.length : 0;
+  const approvedCount   = (state.approvals?.approved  || []).length;
+  const declinedCount   = (state.approvals?.declined  || []).length;
+  const pendingCount    = Math.max(0,
+    totalCandidates - approvedCount - declinedCount);
+  document.getElementById('statPending').textContent = pendingCount;
+
   document.getElementById('statErrors').textContent = h.filter(d =>
     ['error','failed'].includes(d.phase1_status) ||
     ['error','failed'].includes(d.phase2_status) ||
