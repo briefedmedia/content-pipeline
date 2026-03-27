@@ -400,10 +400,19 @@ body {
   z-index: 2;
 }
 
-.phase.done { background: rgba(48,209,88,0.04); }
-.phase.active { background: rgba(10,132,255,0.06); }
-.phase.waiting { background: rgba(255,214,10,0.04); }
-.phase.error { background: rgba(255,69,58,0.06); }
+/* Phase backgrounds are set dynamically via inline style based on progress.
+   Error state overrides everything. */
+.phase.error {
+  background: rgba(255,69,58,0.12) !important;
+  animation: errorPulse 2s ease-in-out infinite;
+}
+
+@keyframes errorPulse {
+  0%, 100% { background: rgba(255,69,58,0.10); }
+  50% { background: rgba(255,69,58,0.20); }
+}
+
+.phase { transition: background 0.6s ease; }
 
 .phase-num {
   font-size: 11px;
@@ -1504,6 +1513,72 @@ async function refreshAll() {
   }
 }
 
+// ── Phase progress & color ─────────────────────────────────────────────────
+
+function getPhaseProgress(phaseKey) {
+  // Returns 0–1 based on how many sub-steps are complete
+  const s = state.pipelineStatus || {};
+  const d1 = s.phase1_detail || {};
+  const d2 = s.phase2_detail || {};
+  const d3 = s.phase3_detail || {};
+  const dp = s.published_detail || {};
+
+  if (phaseKey === '1') {
+    // 5 steps: headlines, rank, enrich, upload, notify
+    const p1 = s.phase1 || 'idle';
+    if (p1 === 'idle') return 0;
+    const isDone = p1 === 'done';
+    let done = 0;
+    if (d1.headlines_fetched > 0) done++;
+    if (d1.stories_found > 0)    done++;
+    if (isDone) done = 5; // all complete
+    else if (done === 2) done = 2; // ranked but not enriched yet
+    return done / 5;
+
+  } else if (phaseKey === '2') {
+    // 7 steps: script, shorts, pdf, images, clips, preview, vo-drop
+    const p2 = s.phase2 || 'idle';
+    if (p2 === 'idle') return 0;
+    let done = 0;
+    if (d2.word_count > 0)         done++; // script
+    if (d2.shorts_word_count > 0)  done++; // shorts
+    if (d2.word_count > 0)         done++; // pdf (generated with script)
+    if (d2.image_count > 0)        done++; // images
+    if (d2.clip_count > 0)         done++; // clips
+    if (p2 === 'done')             done += 2; // preview + vo-drop ready
+    return done / 7;
+
+  } else if (phaseKey === '3') {
+    // 5 steps: vo source, captions, sync, shorts, cost
+    const p3 = s.phase3 || 'idle';
+    if (p3 === 'idle') return 0;
+    if (p3 === 'done') return 1;
+    if (p3 === 'active') return 0.3; // started but not done
+    return 0;
+
+  } else if (phaseKey === 'pub') {
+    if (s.published) return 1;
+    return 0;
+  }
+  return 0;
+}
+
+function progressToColor(progress, phaseState) {
+  // Error overrides everything — handled by CSS class, return transparent
+  if (phaseState === 'error') return 'transparent';
+  // Idle — no tint
+  if (progress === 0 && phaseState === 'idle') return 'transparent';
+
+  // Interpolate hue: 210 (blue) → 160 (teal) → 145 (green)
+  // and increase opacity as progress grows
+  const hue = 210 - (progress * 65);        // 210 → 145
+  const sat = 70 + (progress * 20);          // 70% → 90%
+  const light = 50;
+  const opacity = 0.04 + (progress * 0.10);  // 0.04 → 0.14
+
+  return `hsla(${hue}, ${sat}%, ${light}%, ${opacity.toFixed(3)})`;
+}
+
 // ── Pipeline render ────────────────────────────────────────────────────────
 
 function renderPipeline() {
@@ -1544,16 +1619,20 @@ function renderPipeline() {
 
   const arrows = `<div class="phase-arrow">›</div>`;
   const sheetKeys = ['1', '2', '3', 'pub'];
-  document.getElementById('phasesRow').innerHTML = phases.map((p, i) => `
-    <div class="phase ${p.state}" onclick="openPhaseSheet('${sheetKeys[i]}')">
+  document.getElementById('phasesRow').innerHTML = phases.map((p, i) => {
+    const progress = getPhaseProgress(sheetKeys[i]);
+    const bgColor  = progressToColor(progress, p.state);
+    return `
+    <div class="phase ${p.state}" onclick="openPhaseSheet('${sheetKeys[i]}')"
+         style="background:${bgColor}">
       <div class="phase-num"><div class="phase-dot"></div>Phase ${p.num}</div>
       <div class="phase-label">${p.label}</div>
       <div class="phase-detail">${p.detail}</div>
       ${p.time ? `<div class="phase-time-str">${fmt(p.time)}</div>` : ''}
       <div style="position:absolute;bottom:10px;right:10px;font-size:10px;color:var(--text3);">›</div>
     </div>
-    ${i < phases.length - 1 ? arrows : ''}
-  `).join('');
+    ${i < phases.length - 1 ? arrows : ''}`;
+  }).join('');
 
   // Show countdown only when: candidates exist, none approved, auto not cancelled, window open
   const bar = document.getElementById('countdownBar');
