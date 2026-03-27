@@ -252,12 +252,47 @@ def auto_approve(date):
 @app.route("/approve/<date>/cancel-auto", methods=["GET", "POST"])
 def cancel_auto_approve(date):
     approvals = load_approvals()
+    day = approvals.get(date, {})
+
+    # Expiry guard: if phase1 timestamp exists and > 2 hours ago, reject
+    ts = day.get("timestamp")
+    if ts:
+        try:
+            phase1_time = datetime.datetime.fromisoformat(ts)
+            if (datetime.datetime.now() - phase1_time).total_seconds() > 7200:
+                return jsonify({
+                    "error":   "window_expired",
+                    "message": "The auto-select window has already closed. Approve a story manually.",
+                }), 400
+        except Exception:
+            pass
+
+    # Ensure the day record exists
     if date not in approvals:
         approvals[date] = {"approved": [], "timestamp": datetime.datetime.now().isoformat()}
-    approvals[date]["auto_cancelled"]    = True
-    approvals[date]["auto_cancelled_at"] = datetime.datetime.now().isoformat()
-    save_approvals(approvals)
-    return jsonify({"status": "cancelled", "message": f"Auto-select disabled for {date}"})
+
+    currently_cancelled = approvals[date].get("auto_cancelled", False)
+
+    if not currently_cancelled:
+        # Cancel auto-select
+        approvals[date]["auto_cancelled"]    = True
+        approvals[date]["auto_cancelled_at"] = datetime.datetime.now().isoformat()
+        save_approvals(approvals)
+        return jsonify({
+            "status":         "cancelled",
+            "auto_cancelled": True,
+            "message":        f"Auto-select disabled for {date}",
+        })
+    else:
+        # Re-enable auto-select
+        approvals[date]["auto_cancelled"]    = False
+        approvals[date]["auto_cancelled_at"] = None
+        save_approvals(approvals)
+        return jsonify({
+            "status":         "enabled",
+            "auto_cancelled": False,
+            "message":        f"Auto-select re-enabled for {date}",
+        })
 
 
 @app.route("/approve/<date>/decline/<int:story_index>", methods=["POST"])

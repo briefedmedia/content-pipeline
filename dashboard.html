@@ -1358,9 +1358,13 @@ function renderPipeline() {
     ${i < phases.length - 1 ? arrows : ''}
   `).join('');
 
-  // Show countdown if phase1 done and no approvals yet
-  const bar = document.getElementById('countdownBar');
-  if (state.candidates.length && !(state.approvals.approved || []).length && !state.autoCancelled) {
+  // Show countdown only in STATE 1: window open, auto-select still active
+  const bar          = document.getElementById('countdownBar');
+  const showCountdown = state.candidates.length > 0
+    && !(state.approvals.approved || []).length
+    && !state.autoCancelled
+    && !isWindowExpired(state.phase1Time);
+  if (showCountdown) {
     bar.classList.remove('hidden');
     startCountdown();
   } else {
@@ -1390,13 +1394,22 @@ function renderPipeline() {
 
 // ── Countdown ──────────────────────────────────────────────────────────────
 
+function isWindowExpired(ts) {
+  if (!ts) return false;
+  return Date.now() > new Date(ts).getTime() + 2 * 60 * 60 * 1000;
+}
+
 function startCountdown() {
   stopCountdown();
   if (!state.phase1Time) return;
   const end = new Date(state.phase1Time).getTime() + 2 * 60 * 60 * 1000;
   state.countdownInterval = setInterval(() => {
     const rem = Math.max(0, end - Date.now());
-    if (rem === 0) { stopCountdown(); document.getElementById('countdownBar').classList.add('hidden'); return; }
+    if (rem === 0) {
+      stopCountdown();
+      document.getElementById('countdownBar').classList.add('hidden');
+      return;
+    }
     const h = Math.floor(rem / 3600000);
     const m = Math.floor((rem % 3600000) / 60000);
     const s = Math.floor((rem % 60000) / 1000);
@@ -1506,15 +1519,35 @@ async function triggerPhase1() {
 }
 
 async function cancelAutoSelect() {
-  if (state.autoCancelled) { toast('Auto-select already cancelled', 'ℹ'); return; }
+  // Window already expired — nothing to toggle
+  if (isWindowExpired(state.phase1Time)) {
+    toast('Auto-select window already closed', 'ℹ');
+    return;
+  }
   const res = await apiCall('POST', `/approve/${state.today}/cancel-auto`);
   if (!res) return;
-  if (res.ok) {
+
+  if (res.status === 400 && res.data?.error === 'window_expired') {
+    // Server says window closed — hide countdown and update button
     state.autoCancelled = true;
     updateCancelBtn();
     stopCountdown();
     document.getElementById('countdownBar').classList.add('hidden');
-    toast('Auto-select cancelled', '🚫');
+    toast('Auto-select window already closed — approve manually', '⚠');
+    return;
+  }
+
+  if (res.ok) {
+    state.autoCancelled = res.data?.auto_cancelled ?? !state.autoCancelled;
+    updateCancelBtn();
+    if (state.autoCancelled) {
+      stopCountdown();
+      document.getElementById('countdownBar').classList.add('hidden');
+      toast('Auto-select cancelled', '🚫');
+    } else {
+      renderPipeline(); // restarts countdown via renderPipeline
+      toast('Auto-select re-enabled', '⏱');
+    }
   } else {
     toast('Failed — try again', '⚠');
   }
@@ -1522,14 +1555,20 @@ async function cancelAutoSelect() {
 
 function updateCancelBtn() {
   const btn = document.getElementById('cancelAutoBtn');
-  if (state.autoCancelled) {
+  if (!btn) return;
+  const expired = isWindowExpired(state.phase1Time);
+  if (expired) {
+    btn.classList.add('cancel-auto-active');
+    btn.querySelector('.ctrl-label').textContent = 'Window Closed';
+    btn.querySelector('.ctrl-desc').textContent  = 'Approve a story manually';
+  } else if (state.autoCancelled) {
     btn.classList.add('cancel-auto-active');
     btn.querySelector('.ctrl-label').textContent = 'Auto-Select Off';
-    btn.querySelector('.ctrl-desc').textContent = 'Tap to re-enable';
+    btn.querySelector('.ctrl-desc').textContent  = 'Tap to re-enable';
   } else {
     btn.classList.remove('cancel-auto-active');
     btn.querySelector('.ctrl-label').textContent = 'Cancel Auto-Select';
-    btn.querySelector('.ctrl-desc').textContent = "Don't auto-approve story #1";
+    btn.querySelector('.ctrl-desc').textContent  = "Don't auto-approve story #1";
   }
 }
 
