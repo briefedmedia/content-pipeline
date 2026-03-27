@@ -65,25 +65,59 @@ def _get_or_create_folder(service, parent_id, name):
 
 
 def get_or_create_story_folder(slug, category):
-    """Find or create a two-level subfolder: category_root / YYYY-MM-DD / slug-keywords /
+    """Find or create the correct Drive subfolder for a slug and category.
 
-    For the "pending" category (drop zone root), returns FOLDERS["pending"] directly.
+    CASE A — date-only slug (no underscore, e.g. "2026-03-26"):
+      Creates: category_root / YYYY-MM-DD /
+      Used for candidates files and other per-day assets.
+
+    CASE B — full story slug (contains underscore, e.g. "2026-03-26_iran-hormuz"):
+      Creates: category_root / YYYY-MM-DD / keyword-part /
+      Used for all story-specific assets.
+
+    The "pending" category returns FOLDERS["pending"] directly (flat drop zone root).
     Use get_or_create_pending_story_folder(slug) for story-specific pending subfolders.
-
-    slug format: YYYY-MM-DD_keyword-keyword  (e.g. 2026-03-24_trump-greenland)
-    date is extracted from the first 10 characters of the slug.
     """
     if category == "pending":
         return FOLDERS["pending"]
 
-    service  = get_service()
-    root_id  = FOLDERS[category]
-    date     = slug[:10]          # "2026-03-24"
-    keywords = slug[11:] if len(slug) > 11 else slug   # "trump-greenland"
+    service = get_service()
+    root_id = FOLDERS[category]
 
-    date_folder_id  = _get_or_create_folder(service, root_id, date)
-    story_folder_id = _get_or_create_folder(service, date_folder_id, keywords)
-    return story_folder_id
+    if "_" not in slug:
+        # Case A: plain date -- one level only
+        return _get_or_create_folder(service, root_id, slug)
+
+    # Case B: full slug -- two levels
+    date     = slug[:10]    # "2026-03-26"
+    keywords = slug[11:]    # "iran-hormuz"
+    date_folder_id = _get_or_create_folder(service, root_id, date)
+    return _get_or_create_folder(service, date_folder_id, keywords)
+
+
+def get_or_create_subfolder(parent_slug, category, subfolder_name):
+    """Create a named subfolder inside an existing story folder.
+
+    e.g. get_or_create_subfolder("2026-03-26", "stories", "declined")
+    -> stories / 2026-03-26 / declined /
+    """
+    service          = get_service()
+    parent_folder_id = get_or_create_story_folder(parent_slug, category)
+    return _get_or_create_folder(service, parent_folder_id, subfolder_name)
+
+
+def archive_declined_story(date, story_index, story_data):
+    """Save a declined story to Drive/stories/date/declined/."""
+    declined_folder = get_or_create_subfolder(date, "stories", "declined")
+    raw_title  = story_data.get("title", "untitled")[:30].lower()
+    safe_title = "".join(c if c.isalnum() or c == "-" else "-"
+                         for c in raw_title.replace(" ", "-"))
+    filename   = f"declined_{story_index:02d}_{safe_title}.json"
+    local_path = os.path.join(tempfile.gettempdir(), filename)
+    with open(local_path, "w", encoding="utf-8") as fh:
+        json.dump(story_data, fh, indent=2, ensure_ascii=False)
+    upload_file(local_path, "stories", filename, folder_id=declined_folder)
+    print(f"  Archived declined story: Drive/stories/{date}/declined/{filename}")
 
 
 def get_or_create_pending_story_folder(slug):
