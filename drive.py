@@ -173,6 +173,58 @@ def list_files(folder_key):
     ).execute()
     return results.get("files", [])
 
+def read_candidates_from_drive(date):
+    """Read candidates_{date}.json from Drive/stories/{date}/ folder.
+
+    Returns the parsed candidates list, or [] if not found.
+    Used by pipeline-api to serve /candidates/today when the file
+    was written by pipeline-cron on a different container.
+    """
+    try:
+        service = get_service()
+        # Find the date subfolder under stories/
+        stories_root = FOLDERS["stories"]
+        folder_q = (
+            f'"{stories_root}" in parents and name = "{date}" and '
+            f'mimeType = "application/vnd.google-apps.folder" and trashed = false'
+        )
+        folders = service.files().list(
+            q=folder_q, fields="files(id)",
+            supportsAllDrives=True, includeItemsFromAllDrives=True,
+        ).execute().get("files", [])
+
+        if not folders:
+            return []
+
+        folder_id = folders[0]["id"]
+        filename = f"candidates_{date}.json"
+
+        # Find the candidates file in that folder
+        file_q = f'"{folder_id}" in parents and name = "{filename}" and trashed = false'
+        files = service.files().list(
+            q=file_q, fields="files(id)",
+            supportsAllDrives=True, includeItemsFromAllDrives=True,
+        ).execute().get("files", [])
+
+        if not files:
+            return []
+
+        # Download to memory
+        req = service.files().get_media(fileId=files[0]["id"], supportsAllDrives=True)
+        content = io.BytesIO()
+        dl = MediaIoBaseDownload(content, req)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+
+        content.seek(0)
+        data = json.loads(content.read().decode("utf-8"))
+        return data.get("candidates", [])
+    except Exception as e:
+        print(f"  [Drive] read_candidates_from_drive failed: {e}")
+        return []
+
+
 def list_pending_recordings():
     """List all files inside pending/ and its story subfolders.
 

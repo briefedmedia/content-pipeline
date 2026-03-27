@@ -1503,7 +1503,7 @@ async function refreshAll() {
     }
     if (history) { state.history = history; renderHistory(); }
     renderStats();
-    if (status) { state.pipelineStatus = status; renderPipeline(); }
+    if (status) { state.pipelineStatus = status; renderPipeline(); schedulePoll(); }
 
     renderCosts();
   } catch(e) {
@@ -1516,45 +1516,79 @@ async function refreshAll() {
 // ── Phase progress & color ─────────────────────────────────────────────────
 
 function getPhaseProgress(phaseKey) {
-  // Returns 0–1 based on how many sub-steps are complete
+  // Returns 0–1 based on sub-step completion + granular progress notes
   const s = state.pipelineStatus || {};
   const d1 = s.phase1_detail || {};
   const d2 = s.phase2_detail || {};
   const d3 = s.phase3_detail || {};
   const dp = s.published_detail || {};
 
+  // Helper: parse "key=N/M" from progress notes (e.g. "images=4/8")
+  function parseProgress(notes, key) {
+    for (const n of (notes || [])) {
+      if (n.startsWith(key + '=')) {
+        const val = n.split('=')[1];
+        if (val.includes('/')) {
+          const [done, total] = val.split('/').map(Number);
+          return { done, total };
+        }
+        return { done: parseInt(val) || 0, total: 0 };
+      }
+    }
+    return null;
+  }
+
+  function hasNote(notes, key) {
+    return (notes || []).some(n => n.includes(key));
+  }
+
   if (phaseKey === '1') {
-    // 5 steps: headlines, rank, enrich, upload, notify
     const p1 = s.phase1 || 'idle';
     if (p1 === 'idle') return 0;
-    const isDone = p1 === 'done';
+    if (p1 === 'done' || p1 === 'success') return 1;
+    const notes = d1.progress_notes || [];
     let done = 0;
-    if (d1.headlines_fetched > 0) done++;
-    if (d1.stories_found > 0)    done++;
-    if (isDone) done = 5; // all complete
-    else if (done === 2) done = 2; // ranked but not enriched yet
+    if (d1.headlines_fetched > 0 || hasNote(notes, 'headlines_fetched')) done++;
+    if (d1.stories_found > 0 || hasNote(notes, 'stories_ranked'))       done++;
+    if (hasNote(notes, 'stories_enriched')) done++;
+    if (hasNote(notes, 'uploaded'))         done++;
+    if (hasNote(notes, 'notified'))         done++;
     return done / 5;
 
   } else if (phaseKey === '2') {
-    // 7 steps: script, shorts, pdf, images, clips, preview, vo-drop
     const p2 = s.phase2 || 'idle';
     if (p2 === 'idle') return 0;
+    if (p2 === 'done' || p2 === 'success') return 1;
+    const notes = d2.progress_notes || [];
     let done = 0;
-    if (d2.word_count > 0)         done++; // script
-    if (d2.shorts_word_count > 0)  done++; // shorts
-    if (d2.word_count > 0)         done++; // pdf (generated with script)
-    if (d2.image_count > 0)        done++; // images
-    if (d2.clip_count > 0)         done++; // clips
-    if (p2 === 'done')             done += 2; // preview + vo-drop ready
-    return done / 7;
+    const totalSteps = 7; // script, shorts, pdf, images, clips, preview, vo-drop
+    if (d2.word_count > 0 || hasNote(notes, 'script_done'))       done++;
+    if (d2.shorts_word_count > 0 || hasNote(notes, 'shorts_done')) done++;
+    if (d2.word_count > 0)                                         done++; // pdf
+    // Granular image progress: "images=4/8" → fractional step
+    const imgProg = parseProgress(notes, 'images');
+    if (d2.image_count > 0) { done++; }
+    else if (imgProg) { done += imgProg.total > 0 ? imgProg.done / imgProg.total : 0; }
+    // Granular clip progress
+    const clipProg = parseProgress(notes, 'clips');
+    if (d2.clip_count > 0) { done++; }
+    else if (clipProg) { done += clipProg.total > 0 ? clipProg.done / clipProg.total : 0; }
+    if (hasNote(notes, 'preview_ready')) done++;
+    if (p2 === 'done') done = totalSteps;
+    return done / totalSteps;
 
   } else if (phaseKey === '3') {
-    // 5 steps: vo source, captions, sync, shorts, cost
     const p3 = s.phase3 || 'idle';
     if (p3 === 'idle') return 0;
-    if (p3 === 'done') return 1;
-    if (p3 === 'active') return 0.3; // started but not done
-    return 0;
+    if (p3 === 'done' || p3 === 'success') return 1;
+    const notes = d3.progress_notes || [];
+    let done = 0;
+    if (hasNote(notes, 'audio_done'))    done++;
+    if (hasNote(notes, 'captions_done')) done++;
+    if (hasNote(notes, 'assembled'))     done++;
+    if (hasNote(notes, 'shorts_done'))   done++;
+    if (p3 === 'active' && done === 0) done = 0.5; // started
+    return done / 5;
 
   } else if (phaseKey === 'pub') {
     if (s.published) return 1;
@@ -2230,11 +2264,22 @@ function closePhaseSheet(e) {
   document.body.style.overflow = '';
 }
 
+// ── Adaptive polling ──────────────────────────────────────────────────────
+
+let pollTimer = null;
+function schedulePoll() {
+  if (pollTimer) clearInterval(pollTimer);
+  const s = state.pipelineStatus || {};
+  const isActive = s.phase1 === 'active' || s.phase2 === 'active' || s.phase3 === 'active';
+  const interval = isActive ? 10000 : 60000;
+  pollTimer = setInterval(refreshAll, interval);
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────
 
 refreshAll();
 loadDriveLinks();
-setInterval(refreshAll, 60000);
+schedulePoll();
 </script>
 </body>
 </html>

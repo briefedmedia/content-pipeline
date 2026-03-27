@@ -22,27 +22,10 @@ import drive
 
 PORT = int(os.getenv("PORT", 8080))
 
-PENDING_JOBS_PATH = os.path.join(os.path.dirname(__file__), "pending_jobs.json")
-
 def _enqueue_job(job_type, **kwargs):
-    """Append a job to pending_jobs.json for pipeline-cron to pick up."""
-    jobs = []
-    if os.path.exists(PENDING_JOBS_PATH):
-        try:
-            with open(PENDING_JOBS_PATH) as f:
-                jobs = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            jobs = []
-    job = {
-        "type":         job_type,
-        "requested_at": datetime.datetime.now().isoformat(),
-        "status":       "pending",
-        **kwargs,
-    }
-    jobs.append(job)
-    with open(PENDING_JOBS_PATH, "w") as f:
-        json.dump(jobs, f, indent=2)
-    return job
+    """Write a pending job to Google Sheets for pipeline-cron to pick up."""
+    from sheets import enqueue_job
+    return enqueue_job(job_type, **kwargs)
 
 @app.route("/")
 def dashboard():
@@ -67,12 +50,17 @@ def stories_page():
 @app.route("/candidates/today")
 def candidates_today():
     today = datetime.date.today().isoformat()
-    path  = os.path.join(TMP, today, f"candidates_{today}.json")
-    if not os.path.exists(path):
-        return jsonify([])
-    with open(path) as f:
-        data = json.load(f)
-    candidates = data.get("candidates", [])
+
+    # Try local file first (works during local dev), fall back to Drive
+    candidates = []
+    path = os.path.join(TMP, today, f"candidates_{today}.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            data = json.load(f)
+        candidates = data.get("candidates", [])
+    else:
+        from drive import read_candidates_from_drive
+        candidates = read_candidates_from_drive(today)
     out = []
     for c in candidates:
         hc           = c.get("historical_context", {})
@@ -152,14 +140,19 @@ def status():
         if status_val == "running":             return "active"
         return "idle"
 
-    # Phase 1 detail — read from candidates file
+    # Phase 1 detail — read from local candidates file or Drive
     p1_detail = {}
     try:
+        candidates = []
         cpath = os.path.join(TMP, today, f"candidates_{today}.json")
         if os.path.exists(cpath):
             with open(cpath) as f:
                 cdata = json.load(f)
             candidates = cdata.get("candidates", [])
+        else:
+            from drive import read_candidates_from_drive
+            candidates = read_candidates_from_drive(today)
+        if candidates:
             p1_detail = {
                 "stories_found":     len(candidates),
                 "sources_checked":   10,
@@ -218,14 +211,26 @@ def status():
     except Exception:
         pass
 
+    # Granular progress from log rows
+    try:
+        from sheets import get_phase_progress
+        progress = get_phase_progress("news", today)
+    except Exception:
+        progress = {}
+
+    # Enrich detail objects with granular progress notes
+    for phase_key, detail_obj in [("phase1", p1_detail), ("phase2", p2_detail), ("phase3", p3_detail)]:
+        if phase_key in progress:
+            detail_obj["progress_notes"] = progress[phase_key].get("notes", [])
+
     return jsonify({
         "pipeline":       "running",
         "today":          today,
 
-        # Phase states
-        "phase1":         phase_state(p1),
-        "phase2":         phase_state(p2),
-        "phase3":         phase_state(p3),
+        # Phase states — prefer granular progress over job-level status
+        "phase1":         progress.get("phase1", {}).get("status") or phase_state(p1),
+        "phase2":         progress.get("phase2", {}).get("status") or phase_state(p2),
+        "phase3":         progress.get("phase3", {}).get("status") or phase_state(p3),
         "published":      bool(published_detail),
 
         # Timestamps from job
@@ -238,7 +243,7 @@ def status():
         "declined_count": len(day.get("declined", [])),
         "auto_cancelled": day.get("auto_cancelled", False),
 
-        # Phase detail objects
+        # Phase detail objects (now include progress_notes)
         "phase1_detail":  p1_detail,
         "phase2_detail":  p2_detail,
         "phase3_detail":  p3_detail,

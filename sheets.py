@@ -300,3 +300,223 @@ def get_cost_summary(n_days=30):
     except Exception as e:
         print(f"  [Sheets] get_cost_summary failed: {e}")
         return {"rows": [], "total": 0.0, "by_service": {}}
+
+
+# =========================
+# JOB QUEUE (shared between pipeline-api and pipeline-cron)
+# =========================
+
+_job_queue_ws = None
+
+def _get_job_queue_ws():
+    """Get or create the job_queue worksheet."""
+    global _job_queue_ws
+    if _job_queue_ws is None:
+        spreadsheet = _get_spreadsheet()
+        try:
+            _job_queue_ws = spreadsheet.worksheet("job_queue")
+        except Exception:
+            _job_queue_ws = spreadsheet.add_worksheet(title="job_queue", rows="500", cols="7")
+            _job_queue_ws.append_row(
+                ["timestamp", "job_type", "status", "params", "error", "updated_at", "row_id"],
+                value_input_option="RAW"
+            )
+    return _job_queue_ws
+
+
+def enqueue_job(job_type, **params):
+    """Write a pending job row. Returns the job dict."""
+    try:
+        ws = _get_job_queue_ws()
+        now = datetime.datetime.now().isoformat()
+        row_id = f"{job_type}_{int(datetime.datetime.now().timestamp())}"
+        ws.append_row([
+            now,                        # timestamp
+            job_type,                   # job_type
+            "pending",                  # status
+            json.dumps(params),         # params
+            "",                         # error
+            now,                        # updated_at
+            row_id,                     # row_id
+        ], value_input_option="RAW")
+        print(f"  [Sheets] Job enqueued: {job_type} ({row_id})")
+        return {"row_id": row_id, "type": job_type, "status": "pending", **params}
+    except Exception as e:
+        print(f"  [Sheets] enqueue_job failed: {e}")
+        return None
+
+
+def poll_pending_jobs():
+    """Read all pending jobs from the job_queue worksheet. Returns list of dicts with sheet row numbers."""
+    try:
+        ws = _get_job_queue_ws()
+        rows = ws.get_all_values()
+        pending = []
+        for i, row in enumerate(rows):
+            if i == 0:
+                continue  # skip header
+            if len(row) < 4:
+                continue
+            if row[2] == "pending":
+                params = {}
+                try:
+                    params = json.loads(row[3])
+                except Exception:
+                    pass
+                pending.append({
+                    "sheet_row": i + 1,  # 1-based for gspread
+                    "timestamp": row[0],
+                    "type":      row[1],
+                    "status":    row[2],
+                    "params":    params,
+                    "row_id":    row[6] if len(row) > 6 else "",
+                })
+        return pending
+    except Exception as e:
+        print(f"  [Sheets] poll_pending_jobs failed: {e}")
+        return []
+
+
+def update_job_status(sheet_row, status, error=None):
+    """Update a job row's status. sheet_row is 1-based."""
+    try:
+        ws = _get_job_queue_ws()
+        now = datetime.datetime.now().isoformat()
+        ws.update_cell(sheet_row, 3, status)        # column C = status
+        ws.update_cell(sheet_row, 6, now)            # column F = updated_at
+        if error:
+            ws.update_cell(sheet_row, 5, str(error)[:200])  # column E = error
+        print(f"  [Sheets] Job row {sheet_row} → {status}")
+    except Exception as e:
+        print(f"  [Sheets] update_job_status failed: {e}")
+
+
+def prune_old_jobs(hours=48):
+    """Delete completed/error jobs older than N hours."""
+    try:
+        ws = _get_job_queue_ws()
+        rows = ws.get_all_values()
+        cutoff = (datetime.datetime.now() - datetime.timedelta(hours=hours)).isoformat()
+        rows_to_delete = []
+        for i, row in enumerate(rows):
+            if i == 0:
+                continue
+            if len(row) < 3:
+                continue
+            if row[2] in ("complete", "error") and row[0] < cutoff:
+                rows_to_delete.append(i + 1)
+        # Delete in reverse order so indices stay valid
+        for row_num in reversed(rows_to_delete):
+            ws.delete_rows(row_num)
+        if rows_to_delete:
+            print(f"  [Sheets] Pruned {len(rows_to_delete)} old jobs")
+    except Exception as e:
+        print(f"  [Sheets] prune_old_jobs failed: {e}")
+
+
+# =========================
+# APPROVALS (shared state between pipeline-api and pipeline-cron)
+# =========================
+
+_approvals_ws = None
+
+def _get_approvals_ws():
+    """Get or create the approvals worksheet."""
+    global _approvals_ws
+    if _approvals_ws is None:
+        spreadsheet = _get_spreadsheet()
+        try:
+            _approvals_ws = spreadsheet.worksheet("approvals")
+        except Exception:
+            _approvals_ws = spreadsheet.add_worksheet(title="approvals", rows="400", cols="3")
+            _approvals_ws.append_row(
+                ["date", "data", "updated_at"],
+                value_input_option="RAW"
+            )
+    return _approvals_ws
+
+
+def load_approvals_for_date(date):
+    """Load approval data for a specific date. Returns dict."""
+    try:
+        ws = _get_approvals_ws()
+        rows = ws.get_all_values()
+        for row in reversed(rows):
+            if len(row) >= 2 and row[0] == date:
+                return json.loads(row[1])
+        return {}
+    except Exception as e:
+        print(f"  [Sheets] load_approvals_for_date failed: {e}")
+        return {}
+
+
+def save_approvals_for_date(date, data):
+    """Save approval data for a specific date. Upserts (updates existing row or appends new)."""
+    try:
+        ws = _get_approvals_ws()
+        rows = ws.get_all_values()
+        now = datetime.datetime.now().isoformat()
+        for i, row in enumerate(rows):
+            if len(row) >= 1 and row[0] == date:
+                ws.update_cell(i + 1, 2, json.dumps(data))
+                ws.update_cell(i + 1, 3, now)
+                return
+        ws.append_row([date, json.dumps(data), now], value_input_option="RAW")
+    except Exception as e:
+        print(f"  [Sheets] save_approvals_for_date failed: {e}")
+
+
+def load_all_approvals():
+    """Load all approval data. Returns dict keyed by date."""
+    try:
+        ws = _get_approvals_ws()
+        rows = ws.get_all_values()
+        result = {}
+        for row in rows[1:]:
+            if len(row) >= 2 and row[0]:
+                try:
+                    result[row[0]] = json.loads(row[1])
+                except Exception:
+                    continue
+        return result
+    except Exception as e:
+        print(f"  [Sheets] load_all_approvals failed: {e}")
+        return {}
+
+
+# =========================
+# GRANULAR PROGRESS
+# =========================
+
+def get_phase_progress(account_type, date=None):
+    """Read the latest progress notes for each phase today. Returns dict."""
+    try:
+        if date is None:
+            date = datetime.date.today().isoformat()
+        sheet = _get_sheet()
+        rows = sheet.get_all_values()
+        progress = {}
+        for row in rows:
+            if len(row) < 6:
+                continue
+            if row[0] == date and row[2].upper() == account_type.upper():
+                key = row[3]
+                status = row[4].lower()
+                note = row[5] if len(row) > 5 else ""
+                phase_key = None
+                if "Phase 1" in key or "phase1" in key:
+                    phase_key = "phase1"
+                elif "Phase 2" in key or "phase2" in key:
+                    phase_key = "phase2"
+                elif "Phase 3" in key or "phase3" in key:
+                    phase_key = "phase3"
+                if phase_key:
+                    if phase_key not in progress:
+                        progress[phase_key] = {"status": status, "notes": []}
+                    progress[phase_key]["status"] = status
+                    if note:
+                        progress[phase_key]["notes"].append(note)
+        return progress
+    except Exception as e:
+        print(f"  [Sheets] get_phase_progress failed: {e}")
+        return {}

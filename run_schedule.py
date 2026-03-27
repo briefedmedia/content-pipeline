@@ -1,7 +1,6 @@
 # run_schedule.py -- internal scheduler for Railway pipeline-cron service
-import schedule, time, os, json
-
-PENDING_JOBS_PATH = os.path.join(os.path.dirname(__file__), "pending_jobs.json")
+# Polls Google Sheets job_queue worksheet for API-enqueued work
+import schedule, time, os
 
 def job(phase, account):
     cmd = f"python main.py {phase} {account}".strip()
@@ -20,55 +19,53 @@ def job(phase, account):
 
 
 def check_pending_jobs():
-    """Poll pending_jobs.json and execute any pending Phase 1/2/3 jobs."""
-    if not os.path.exists(PENDING_JOBS_PATH):
-        return
+    """Poll Google Sheets job_queue for pending jobs and execute them."""
     try:
-        with open(PENDING_JOBS_PATH) as f:
-            jobs = json.load(f)
-    except (json.JSONDecodeError, IOError):
+        from sheets import poll_pending_jobs, update_job_status, prune_old_jobs
+    except Exception as e:
+        print(f"[JobQueue] Failed to import sheets: {e}")
         return
 
-    changed = False
+    jobs = poll_pending_jobs()
+    if not jobs:
+        return
+
+    ran_any = False
     for j in jobs:
-        if j.get("status") != "pending":
-            continue
+        sheet_row = j["sheet_row"]
+        jtype     = j["type"]
+        params    = j["params"]
 
-        j["status"] = "running"
-        _save_jobs(jobs)
-        changed = True
+        update_job_status(sheet_row, "running")
+        ran_any = True
 
-        jtype = j.get("type", "")
         try:
             if jtype == "phase1":
                 from main import run_phase1
-                account = j.get("account_type", "news")
+                account = params.get("account_type", "news")
                 print(f"[JobQueue] Running Phase 1 for {account}")
                 run_phase1(account)
-                j["status"] = "complete"
 
             elif jtype == "phase2":
                 from main import run_phase2_for_story
-                date  = j.get("date")
-                index = j.get("story_index", 0)
+                date  = params.get("date")
+                index = params.get("story_index", 0)
                 print(f"[JobQueue] Running Phase 2 for {date} story {index}")
                 run_phase2_for_story(date, index)
-                j["status"] = "complete"
 
             elif jtype == "phase3":
                 from main import run_phase3
-                account = j.get("account_type", "news")
-                trigger = j.get("trigger", "manual_tts")
-                slug    = j.get("slug")
-                force   = j.get("force", False)
+                account = params.get("account_type", "news")
+                trigger = params.get("trigger", "manual_tts")
+                slug    = params.get("slug")
+                force   = params.get("force", False)
                 print(f"[JobQueue] Running Phase 3 for {account} trigger={trigger}")
                 run_phase3(account, trigger, slug, force)
-                j["status"] = "complete"
 
             elif jtype == "breaking-scan":
                 from discover import scan_for_breaking
                 from breaking import run_breaking
-                account = j.get("account_type", "news")
+                account = params.get("account_type", "news")
                 print(f"[JobQueue] Running breaking news scan for {account}")
                 found = scan_for_breaking(account)
                 if found:
@@ -76,84 +73,66 @@ def check_pending_jobs():
                     run_breaking()
                 else:
                     print("[JobQueue] No breaking stories found")
-                j["status"] = "complete"
 
             elif jtype == "breaking-visuals":
                 from images import run_image_generation
                 from clips  import run_clip_generation
-                from sheets import update_breaking_job
+                from sheets import update_breaking_job, _get_sheet
                 from config import get_style
-                job_id  = j.get("job_id")
-                account = j.get("account_type", "news")
+                import json
+                job_id  = params.get("job_id")
+                account = params.get("account_type", "news")
                 print(f"[JobQueue] Generating breaking visuals for {job_id}")
-                # Load the script from the breaking job sheets record
-                from sheets import _get_sheet
-                import json as _json
                 sheet = _get_sheet()
                 rows = sheet.get_all_values()
                 script_data = None
                 for row in reversed(rows):
                     if len(row) >= 5 and f"breaking_{job_id}" == row[3]:
-                        data = _json.loads(row[4])
+                        data = json.loads(row[4])
                         script_data = data.get("script")
                         break
                 if script_data:
                     imgs  = run_image_generation(script_data, get_style(account))
                     clips = run_clip_generation(imgs, account)
                     update_breaking_job(job_id, {"clips": clips, "phase2": "done"})
-                    # Update active file
-                    from breaking import _load_active, _save_active
-                    active = _load_active()
-                    for aj in active:
-                        if aj.get("job_id") == job_id:
-                            aj["visuals_status"] = "done"
-                            break
-                    _save_active(active)
+                    try:
+                        from breaking import _load_active, _save_active
+                        active = _load_active()
+                        for aj in active:
+                            if aj.get("job_id") == job_id:
+                                aj["visuals_status"] = "done"
+                                break
+                        _save_active(active)
+                    except Exception:
+                        pass
                     print(f"[JobQueue] Breaking visuals complete for {job_id}")
                 else:
                     print(f"[JobQueue] Could not find script for breaking job {job_id}")
-                j["status"] = "complete"
 
             else:
                 print(f"[JobQueue] Unknown job type: {jtype}")
-                j["status"] = "error"
+                update_job_status(sheet_row, "error", f"Unknown job type: {jtype}")
+                continue
+
+            update_job_status(sheet_row, "complete")
 
         except Exception as e:
             print(f"[JobQueue] Job failed: {e}")
-            j["status"] = "error"
-            j["error"]  = str(e)
+            update_job_status(sheet_row, "error", str(e))
             try:
                 from notify import notify_error
-                notify_error(jtype, j.get("account_type", "news"), str(e))
+                notify_error(jtype, params.get("account_type", "news"), str(e))
             except Exception:
                 pass
 
-        _save_jobs(jobs)
-
-    # Prune completed/error jobs older than 24 hours
-    if changed:
-        _prune_old_jobs()
-
-
-def _save_jobs(jobs):
-    with open(PENDING_JOBS_PATH, "w") as f:
-        json.dump(jobs, f, indent=2)
+    if ran_any:
+        try:
+            prune_old_jobs(hours=48)
+        except Exception:
+            pass
 
 
-def _prune_old_jobs():
-    """Remove completed/error jobs older than 24 hours to prevent file growth."""
-    import datetime
-    try:
-        with open(PENDING_JOBS_PATH) as f:
-            jobs = json.load(f)
-        cutoff = (datetime.datetime.now() - datetime.timedelta(hours=24)).isoformat()
-        kept = [j for j in jobs
-                if j.get("status") == "pending"
-                or j.get("status") == "running"
-                or j.get("requested_at", "") > cutoff]
-        _save_jobs(kept)
-    except Exception:
-        pass
+# ── Scheduled jobs ─────────────────────────────────────────────────────────
 
 # HOME DAYS (Sun=0, Mon=1, Tue=2) -- UTC times (EST+5)
 schedule.every().sunday.at("17:00").do(job, "1", "news")
@@ -186,10 +165,10 @@ schedule.every().sunday.at("13:00").do(job, "3", "news --trigger morning_fallbac
 # Weekly recap Sunday 8am EST = 13:00 UTC
 schedule.every().sunday.at("13:00").do(job, "recap", "")
 
-# Poll pending_jobs.json every 60 seconds for API-enqueued work
+# Poll Sheets job_queue every 15 seconds for API-enqueued work
 schedule.every(15).seconds.do(check_pending_jobs)
 
-print("Scheduler running. All times UTC. Polling pending_jobs.json every 15s.")
+print("Scheduler running. All times UTC. Polling Sheets job_queue every 15s.")
 while True:
     schedule.run_pending()
     time.sleep(10)
