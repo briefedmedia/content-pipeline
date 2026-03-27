@@ -1011,7 +1011,7 @@ Return JSON only, no markdown fences:
 # ── PDF teleprompter ───────────────────────────────────────────────────────────
 
 def generate_script_pdf(script_data, slug_dir, account_type="news"):
-    """Generate a formatted teleprompter PDF using reportlab."""
+    """Generate a formatted teleprompter PDF using reportlab with Courier Prime."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import cm
@@ -1019,6 +1019,20 @@ def generate_script_pdf(script_data, slug_dir, account_type="news"):
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                      HRFlowable, Table, TableStyle)
     from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    # Register Courier Prime fonts
+    fonts_dir = os.path.join(os.path.dirname(__file__), "fonts")
+    try:
+        pdfmetrics.registerFont(TTFont("CourierPrime", os.path.join(fonts_dir, "CourierPrime-Regular.ttf")))
+        pdfmetrics.registerFont(TTFont("CourierPrime-Bold", os.path.join(fonts_dir, "CourierPrime-Bold.ttf")))
+        pdfmetrics.registerFont(TTFont("CourierPrime-Italic", os.path.join(fonts_dir, "CourierPrime-Italic.ttf")))
+        FONT      = "CourierPrime"
+        FONT_BOLD = "CourierPrime-Bold"
+    except Exception:
+        FONT      = "Courier"
+        FONT_BOLD = "Courier-Bold"
 
     slug             = script_data["slug"]
     title            = script_data["title"]
@@ -1033,17 +1047,17 @@ def generate_script_pdf(script_data, slug_dir, account_type="news"):
                             leftMargin=2*cm, rightMargin=2*cm,
                             topMargin=2.5*cm, bottomMargin=2.5*cm)
 
-    # Styles
+    # Styles — Courier Prime throughout
     header_style = ParagraphStyle("header", fontSize=9, textColor=colors.HexColor("#888888"),
-                                  fontName="Helvetica")
-    title_style  = ParagraphStyle("title", fontSize=20, fontName="Helvetica-Bold",
-                                  alignment=TA_CENTER, spaceAfter=6)
-    scene_hdr    = ParagraphStyle("scene_hdr", fontSize=9, fontName="Helvetica-Bold",
+                                  fontName=FONT)
+    title_style  = ParagraphStyle("title", fontSize=18, fontName=FONT_BOLD,
+                                  alignment=TA_CENTER, leading=26, spaceAfter=12)
+    scene_hdr    = ParagraphStyle("scene_hdr", fontSize=9, fontName=FONT_BOLD,
                                   textColor=colors.HexColor("#555555"))
-    body_style   = ParagraphStyle("body", fontSize=14, fontName="Helvetica",
+    body_style   = ParagraphStyle("body", fontSize=13, fontName=FONT,
                                   leading=22, spaceAfter=8)
     footer_style = ParagraphStyle("footer", fontSize=9, textColor=colors.HexColor("#888888"),
-                                  alignment=TA_CENTER)
+                                  fontName=FONT, alignment=TA_CENTER)
 
     # Split script into scene chunks proportionally by word count
     words = full_script.split()
@@ -1079,9 +1093,7 @@ def generate_script_pdf(script_data, slug_dir, account_type="news"):
 
     # Title
     story_elements.append(Paragraph(title, title_style))
-    story_elements.append(HRFlowable(width="100%", thickness=1,
-                                     color=colors.HexColor("#333333")))
-    story_elements.append(Spacer(1, 0.5*cm))
+    story_elements.append(Spacer(1, 0.3*cm))
 
     # Scenes
     elapsed_words = 0
