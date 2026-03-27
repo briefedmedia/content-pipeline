@@ -42,11 +42,11 @@ STYLE_PREFIXES = {
     ),
 }
 
-def generate_image(scene_description, style_key, scene_num, slug, images_folder_id):
+def generate_image(scene_description, style_key, scene_num, slug, images_folder_id,
+                   section="", visual_label=""):
     """Generate one image and upload it into the story's Drive subfolder."""
     base_prompt = STYLE_PREFIXES[style_key] + scene_description
 
-    # Add quality directives and anti-illustration guardrail
     full_prompt = (
         f"{base_prompt}. "
         "Grainy, imperfect, authentic. Not a render, not staged, not polished. "
@@ -61,8 +61,14 @@ def generate_image(scene_description, style_key, scene_num, slug, images_folder_
         quality = "hd",
         n       = 1
     )
-    img_data   = requests.get(response.data[0].url).content
-    filename   = f"scene_{scene_num:02d}.png"
+    img_data = requests.get(response.data[0].url).content
+
+    # Semantic filename if section + visual_label available, else fallback
+    if section and visual_label:
+        filename = f"{scene_num+1:02d}_{section}_{visual_label}.png"
+    else:
+        filename = f"scene_{scene_num:02d}.png"
+
     local_path = os.path.join(TMP, slug, filename)
     with open(local_path, "wb") as f:
         f.write(img_data)
@@ -86,24 +92,29 @@ def run_image_generation(script_data, style_key="history_old"):
 
     image_paths = []
     for i, scene in enumerate(scenes):
-        # Handle both new object format {"image": ..., "motion": ...}
-        # and old flat-string format for backward compatibility with saved scripts
+        # Handle both new object format and old flat-string format
         if isinstance(scene, dict):
-            scene_image  = scene.get("image", "")
-            scene_motion = scene.get("motion", "")
+            scene_image   = scene.get("image", "")
+            scene_motion  = scene.get("motion", "")
+            scene_section = scene.get("section", "")
+            visual_label  = scene.get("visual_label", "")
         else:
-            scene_image  = scene
-            scene_motion = ""
+            scene_image   = scene
+            scene_motion  = ""
+            scene_section = ""
+            visual_label  = ""
 
         print(f"Image {i+1}/{len(scenes)}: {scene_image[:50]}...")
-        path, fid = generate_image(scene_image, style_key, i, slug, images_folder_id)
-        # Store slug AND per-scene motion so clips.py can read both downstream
+        path, fid = generate_image(scene_image, style_key, i, slug, images_folder_id,
+                                   section=scene_section, visual_label=visual_label)
         image_paths.append({
-            "path":     path,
-            "drive_id": fid,
-            "scene":    scene_image,
-            "motion":   scene_motion,   # clips.py uses this before falling back to MOTION_PROMPTS
-            "slug":     slug,
+            "path":         path,
+            "drive_id":     fid,
+            "scene":        scene_image,
+            "motion":       scene_motion,
+            "section":      scene_section,
+            "visual_label": visual_label,
+            "slug":         slug,
         })
     print(f"Generated {len(image_paths)} images → Drive/images/{slug}/")
     return image_paths

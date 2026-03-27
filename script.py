@@ -207,6 +207,23 @@ BAD EXAMPLE:
 Scene count: 8-10 scenes per video. One scene every 8-10 seconds.
 Minimum 7, maximum 12.
 
+SCENE METADATA — TWO ADDITIONAL REQUIRED FIELDS PER SCENE:
+
+Each scene object must also include "section" and "visual_label":
+
+"section" — exactly one of: hook, setup, turn, context, stakes, kicker
+  hook    = opening scene that grabs attention
+  setup   = establishes the situation or characters
+  turn    = the pivot or complication
+  context = historical or background framing
+  stakes  = what is at risk or what this means
+  kicker  = closing scene, the resonant final image
+
+"visual_label" — 2-3 lowercase hyphenated words describing what is visually
+  in the scene. Used as the image and clip filename.
+  Examples: "strait-aerial", "tanker-patrol", "1973-oilcrisis", "official-signing"
+  Rules: lowercase only, hyphens between words, no special characters, no dates.
+
 SLUG: Pick 2-3 keywords that uniquely identify this story.
 Rules: lowercase, hyphens between words, no dates, no special characters.
 Example: "trump-greenland" or "fed-rate-cut" or "ukraine-ceasefire"
@@ -220,7 +237,7 @@ CRITICAL JSON RULES — follow these exactly or the response cannot be parsed:
 Return JSON only, no markdown fences:
 {"script": "...", "title": "...", "word_count": N,
  "estimated_seconds": N,
- "scenes": [{"image": "...", "motion": "..."}, ...],
+ "scenes": [{"image": "...", "motion": "...", "section": "hook", "visual_label": "strait-aerial"}, ...],
  "slug": "keyword1-keyword2"}"""
 
 
@@ -411,6 +428,23 @@ BAD EXAMPLE:
 Scene count: 8-10 scenes per video. One scene every 8-10 seconds.
 Minimum 7, maximum 12.
 
+SCENE METADATA — TWO ADDITIONAL REQUIRED FIELDS PER SCENE:
+
+Each scene object must also include "section" and "visual_label":
+
+"section" — exactly one of: hook, setup, turn, context, stakes, kicker
+  hook    = opening scene that grabs attention
+  setup   = establishes the situation or characters
+  turn    = the pivot or complication
+  context = historical or background framing
+  stakes  = what is at risk or what this means
+  kicker  = closing scene, the resonant final image
+
+"visual_label" — 2-3 lowercase hyphenated words describing what is visually
+  in the scene. Used as the image and clip filename.
+  Examples: "strait-aerial", "tanker-patrol", "1973-oilcrisis", "official-signing"
+  Rules: lowercase only, hyphens between words, no special characters, no dates.
+
 SLUG: Pick 2-3 keywords that uniquely identify this story.
 Rules: lowercase, hyphens between words, no dates, no special characters.
 Example: "trump-greenland" or "fed-rate-cut" or "ukraine-ceasefire"
@@ -424,7 +458,7 @@ CRITICAL JSON RULES — follow these exactly or the response cannot be parsed:
 Return JSON only, no markdown fences:
 {"script": "...", "title": "...", "word_count": N,
  "estimated_seconds": N,
- "scenes": [{"image": "...", "motion": "..."}, ...],
+ "scenes": [{"image": "...", "motion": "...", "section": "hook", "visual_label": "strait-aerial"}, ...],
  "slug": "keyword1-keyword2"}"""
 
 

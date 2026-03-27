@@ -141,12 +141,18 @@ def generate_clip(image_path, motion_prompt, duration, account_type):
         raise ValueError(f'Unknown generator: {generator}')
 
 
-def download_and_upload_clip(video_url, clip_num, slug, clips_folder_id):
+def download_and_upload_clip(video_url, clip_num, slug, clips_folder_id,
+                             section="", visual_label=""):
     """Download a generated clip and upload it into the story's Drive subfolder."""
-    data     = requests.get(video_url).content
-    filename = f'clip_{slug}_{clip_num:02d}.mp4'
-    local_path = os.path.join(TMP, slug, filename)
+    data = requests.get(video_url).content
 
+    # Mirror image semantic naming; fallback to old convention for legacy scripts
+    if section and visual_label:
+        filename = f"{clip_num+1:02d}_{section}_{visual_label}.mp4"
+    else:
+        filename = f"clip_{slug}_{clip_num:02d}.mp4"
+
+    local_path = os.path.join(TMP, slug, filename)
     with open(local_path, 'wb') as f:
         f.write(data)
 
@@ -191,8 +197,12 @@ def run_clip_generation(image_paths, account_type='history'):
         print(f'Generating clip {i+1}/{len(image_paths)} via {generator}...')
         print(f'  Motion ({motion_src}): {motion[:80]}...')
 
+        section      = img.get("section", "")
+        visual_label = img.get("visual_label", "")
+
         video_url = generate_clip(img['path'], motion, 5, account_type)
-        path, fid = download_and_upload_clip(video_url, i, slug, clips_folder_id)
+        path, fid = download_and_upload_clip(video_url, i, slug, clips_folder_id,
+                                             section=section, visual_label=visual_label)
 
         clip_paths.append({'path': path, 'drive_id': fid, 'slug': slug})
         print(f'  Clip {i+1} saved: {path}')
