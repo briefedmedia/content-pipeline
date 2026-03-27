@@ -22,6 +22,28 @@ import drive
 
 PORT = int(os.getenv("PORT", 8080))
 
+PENDING_JOBS_PATH = os.path.join(os.path.dirname(__file__), "pending_jobs.json")
+
+def _enqueue_job(job_type, **kwargs):
+    """Append a job to pending_jobs.json for pipeline-cron to pick up."""
+    jobs = []
+    if os.path.exists(PENDING_JOBS_PATH):
+        try:
+            with open(PENDING_JOBS_PATH) as f:
+                jobs = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            jobs = []
+    job = {
+        "type":         job_type,
+        "requested_at": datetime.datetime.now().isoformat(),
+        "status":       "pending",
+        **kwargs,
+    }
+    jobs.append(job)
+    with open(PENDING_JOBS_PATH, "w") as f:
+        json.dump(jobs, f, indent=2)
+    return job
+
 @app.route("/")
 def dashboard():
     return open("dashboard.html").read(), 200, {"Content-Type": "text/html"}
@@ -306,25 +328,18 @@ def approve_story(date, story_index):
     if story_index not in approvals[date]["approved"]:
         approvals[date]["approved"].append(story_index)
     save_approvals(approvals)
-    try:
-        import threading
-        from main import run_phase2_for_story
-        t = threading.Thread(
-            target=run_phase2_for_story,
-            args=(date, story_index),
-            daemon=True
-        )
-        t.start()
-        return f"""
-        <html><body style="font-family:sans-serif;max-width:500px;margin:60px auto;text-align:center;">
-        <h2>&#10003; Story {story_index + 1} approved</h2>
-        <p>Script and visuals are generating now on Railway.</p>
-        <p style="color:#888;font-size:14px;">You'll receive a Pushover notification when the silent preview is ready.<br>
-        This usually takes 20–40 minutes.</p>
-        </body></html>
-        """, 202
-    except Exception as e:
-        return f"Approval recorded but Phase 2 failed to start: {e}", 500
+    _enqueue_job("phase2",
+                 date=date,
+                 story_index=story_index,
+                 account_type="news")
+    return f"""
+    <html><body style="font-family:sans-serif;max-width:500px;margin:60px auto;text-align:center;">
+    <h2>&#10003; Story {story_index + 1} approved</h2>
+    <p>Script and visuals are generating now on Railway.</p>
+    <p style="color:#888;font-size:14px;">You'll receive a Pushover notification when the silent preview is ready.<br>
+    This usually takes 20–40 minutes.</p>
+    </body></html>
+    """, 202
 
 
 @app.route("/approve/<date>/status")
@@ -353,14 +368,11 @@ def auto_approve(date):
             "auto":      True,
         }
         save_approvals(approvals)
-        try:
-            import threading
-            from main import run_phase2_for_story
-            t = threading.Thread(target=run_phase2_for_story, args=(date, 0), daemon=True)
-            t.start()
-            return "Auto-approved story 1. Script and visuals generating.", 200
-        except Exception as e:
-            return f"Auto-approve triggered but Phase 2 failed: {e}", 500
+        _enqueue_job("phase2",
+                     date=date,
+                     story_index=0,
+                     account_type="news")
+        return "Auto-approved story 1. Script and visuals generating.", 200
     return f"Stories already approved: {day_data['approved']}", 200
 
 
@@ -452,16 +464,13 @@ def approval_status_detail(date):
 
 @app.route("/approve/force-assemble", methods=["GET", "POST"])
 def force_assemble():
-    import threading
-    from main import run_phase3
     account = request.args.get("account", "news")
     slug    = request.args.get("slug", None)
-    t = threading.Thread(
-        target=run_phase3,
-        args=(account, "manual_force", slug, True),
-        daemon=True
-    )
-    t.start()
+    _enqueue_job("phase3",
+                 account_type=account,
+                 trigger="manual_force",
+                 slug=slug,
+                 force=True)
     return """
     <html><body style="font-family:-apple-system,sans-serif;max-width:500px;
     margin:60px auto;text-align:center;background:#000;color:#fff;padding:40px;">
@@ -474,8 +483,6 @@ def force_assemble():
 
 @app.route("/run/phase1", methods=["POST"])
 def run_phase1_route():
-    import threading, datetime
-    from main import run_phase1
     account = request.args.get("account", "news")
     rerun   = request.args.get("rerun", "false").lower() == "true"
     if rerun:
@@ -483,20 +490,21 @@ def run_phase1_route():
         approvals = load_approvals()
         approvals.pop(today, None)
         save_approvals(approvals)
-    t = threading.Thread(target=run_phase1, args=(account,), daemon=True)
-    t.start()
+    _enqueue_job("phase1",
+                 account_type=account,
+                 rerun=rerun)
     return jsonify({"status": "started", "phase": "1", "account": account, "rerun": rerun}), 202
 
 
 @app.route("/run/phase3", methods=["POST"])
 def run_phase3_route():
-    import threading
-    from main import run_phase3
     account = request.args.get("account", "news")
     trigger = request.args.get("trigger", "manual_tts")
     slug    = request.args.get("slug", None)
-    t = threading.Thread(target=run_phase3, args=(account, trigger, slug), daemon=True)
-    t.start()
+    _enqueue_job("phase3",
+                 account_type=account,
+                 trigger=trigger,
+                 slug=slug)
     return jsonify({"status": "started", "phase": "3", "account": account, "trigger": trigger}), 202
 
 
