@@ -1177,11 +1177,7 @@ body {
     <div class="section-title">Drive</div>
   </div>
   <div class="drive-links" id="driveLinks">
-    <a class="drive-link" href="#" target="_blank"><span class="link-icon">📄</span>Today's Script</a>
-    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🎬</span>Silent Preview</a>
-    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🎥</span>Final Video</a>
-    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🖼</span>Images</a>
-    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🔊</span>Audio</a>
+    <div class="loader-text" style="font-size:12px;color:var(--text3);padding:10px 0;text-align:center;">Loading Drive links…</div>
   </div>
 
   <!-- API Cost -->
@@ -1189,8 +1185,8 @@ body {
     <div class="cost-head">
       <div class="cost-title">💸 API Cost Tracker</div>
     </div>
-    <div id="costs-content" style="padding-top:4px;">
-      <p style="color:rgba(255,255,255,0.4);font-size:13px;">Loading...</p>
+    <div id="costs-content" style="padding:0 4px;">
+      <p style="color:rgba(255,255,255,0.4);font-size:13px;padding:24px 16px;text-align:center;">Loading...</p>
     </div>
   </div>
 
@@ -1282,31 +1278,34 @@ async function apiFetch(url, opts = {}) {
 async function refreshAll() {
   const btn = document.getElementById('refreshBtn');
   btn.style.animation = 'spin 0.7s linear infinite';
+  try {
+    document.getElementById('todayStr').textContent = fmtDate(state.today);
+    document.getElementById('pipelineDateLabel').textContent = fmtDate(state.today);
+    document.getElementById('pipelineTimeLabel').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-  document.getElementById('todayStr').textContent = fmtDate(state.today);
-  document.getElementById('pipelineDateLabel').textContent = fmtDate(state.today);
-  document.getElementById('pipelineTimeLabel').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const [candidates, approvalStatus, history, status] = await Promise.all([
+      apiFetch('/candidates/today'),
+      apiFetch(`/approve/${state.today}/status`),
+      apiFetch('/pipeline/history'),
+      apiFetch('/status'),
+    ]);
 
-  const [candidates, approvalStatus, history, status] = await Promise.all([
-    apiFetch('/candidates/today'),
-    apiFetch(`/approve/${state.today}/status`),
-    apiFetch('/pipeline/history'),
-    apiFetch('/status'),
-  ]);
+    if (candidates) { state.candidates = candidates; renderStories(); }
+    if (approvalStatus) {
+      state.approvals = approvalStatus;
+      state.autoCancelled = approvalStatus.auto_cancelled || false;
+      state.phase1Time = approvalStatus.timestamp;
+      updateCancelBtn();
+    }
+    if (history) { state.history = history; renderHistory(); renderStats(); }
+    if (status) { state.pipelineStatus = status; renderPipeline(); }
 
-  if (candidates) { state.candidates = candidates; renderStories(); }
-  if (approvalStatus) {
-    state.approvals = approvalStatus;
-    state.autoCancelled = approvalStatus.auto_cancelled || false;
-    state.phase1Time = approvalStatus.timestamp;
-    updateCancelBtn();
-    updateCountdown();
+    renderCosts();
+  } catch(e) {
+    console.error('refreshAll error:', e);
+  } finally {
+    btn.style.animation = '';
   }
-  if (history) { state.history = history; renderHistory(); renderStats(); }
-  if (status) { state.pipelineStatus = status; renderPipeline(); }
-
-  renderCosts();
-  btn.style.animation = '';
 }
 
 // ── Pipeline render ────────────────────────────────────────────────────────
@@ -1657,7 +1656,7 @@ async function renderCosts() {
     `;
   } catch(e) {
     const el = document.getElementById('costs-content');
-    if (el) el.innerHTML = `<p style="color:rgba(255,255,255,0.4);font-size:13px;">Cost data unavailable</p><a href="/costs" style="color:var(--blue);font-size:13px;">Open Cost Dashboard →</a>`;
+    if (el) el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 16px;"><p style="color:var(--text3);font-size:13px;text-align:center;">Cost data unavailable</p><a href="/costs" style="color:var(--blue);font-size:13px;text-decoration:none;">Open Cost Dashboard →</a></div>`;
   }
 }
 
@@ -1744,9 +1743,30 @@ function toggleHistory(i) {
   document.getElementById(`hi${i}`)?.classList.toggle('open');
 }
 
+async function loadDriveLinks() {
+  const data = await apiFetch('/drive/links');
+  if (!data) return;
+  const links = [
+    { icon: '📁', label: "Today's Stories", key: 'today_stories' },
+    { icon: '📄', label: 'Scripts',          key: 'scripts' },
+    { icon: '🖼',  label: 'Images',           key: 'images' },
+    { icon: '🎬', label: 'Clips',             key: 'clips' },
+    { icon: '🔊', label: 'Audio',             key: 'audio' },
+    { icon: '⏳', label: 'Pending VO',        key: 'pending' },
+    { icon: '👁',  label: 'Previews',          key: 'previews' },
+    { icon: '🎥', label: 'Final Videos',      key: 'final' },
+  ];
+  document.getElementById('driveLinks').innerHTML = links.map(l => `
+    <a class="drive-link" href="${data[l.key] || '#'}"
+       target="_blank" rel="noopener">
+      <span class="link-icon">${l.icon}</span>${l.label}
+    </a>`).join('');
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────
 
 refreshAll();
+loadDriveLinks();
 setInterval(refreshAll, 60000);
 </script>
 </body>

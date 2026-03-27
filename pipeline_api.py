@@ -385,6 +385,35 @@ def run_phase3_route():
     return jsonify({"status": "started", "phase": "3", "account": account, "trigger": trigger}), 202
 
 
+@app.route("/drive/links")
+def drive_links():
+    """Return today's Drive folder URLs for the dashboard quick links."""
+    import datetime
+    from drive import FOLDERS, get_or_create_story_folder
+
+    today = datetime.date.today().isoformat()
+    BASE  = "https://drive.google.com/drive/folders/"
+
+    links = {
+        "stories":  BASE + FOLDERS.get("stories",  ""),
+        "scripts":  BASE + FOLDERS.get("scripts",  ""),
+        "images":   BASE + FOLDERS.get("images",   ""),
+        "clips":    BASE + FOLDERS.get("clips",    ""),
+        "audio":    BASE + FOLDERS.get("audio",    ""),
+        "pending":  BASE + FOLDERS.get("pending",  ""),
+        "previews": BASE + FOLDERS.get("previews", ""),
+        "final":    BASE + FOLDERS.get("final",    ""),
+    }
+
+    try:
+        story_folder = get_or_create_story_folder(today, "stories")
+        links["today_stories"] = BASE + story_folder
+    except Exception:
+        links["today_stories"] = links["stories"]
+
+    return jsonify(links)
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
