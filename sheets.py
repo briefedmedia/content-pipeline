@@ -162,7 +162,7 @@ def load_todays_clips(account_type, slug=None):
 # =========================
 
 def get_todays_job(account_type):
-    """Return a dict with phase statuses for today's job (used by watcher.py)."""
+    """Return a dict with phase statuses for today's job (used by watcher.py and /status)."""
     sheet = _get_sheet()
     today = datetime.date.today().isoformat()
     rows = sheet.get_all_values()
@@ -170,8 +170,16 @@ def get_todays_job(account_type):
     for row in rows:
         if len(row) >= 5 and row[1] == today and row[2] == account_type:
             key = row[3]
-            if key in ("phase1_status", "phase2_status", "phase3_status"):
-                job[key] = row[4]
+            if "Phase 1" in key or "phase1" in key:
+                job["phase1_status"] = row[4].lower()
+                job["phase1_time"]   = row[0]
+            elif "Phase 2" in key or "phase2" in key:
+                job["phase2_status"] = row[4].lower()
+                job["phase2_time"]   = row[0]
+            elif "Phase 3" in key or "phase3" in key:
+                job["phase3_status"] = row[4].lower()
+                job["phase3_time"]   = row[0]
+                job["phase3_note"]   = row[5] if len(row) > 5 else ""
     return job if job else None
 
 def get_weeks_jobs():
