@@ -190,6 +190,28 @@ def approval_status_detail(date):
     })
 
 
+@app.route("/approve/force-assemble", methods=["GET", "POST"])
+def force_assemble():
+    import threading
+    from main import run_phase3
+    account = request.args.get("account", "news")
+    slug    = request.args.get("slug", None)
+    t = threading.Thread(
+        target=run_phase3,
+        args=(account, "manual_force", slug, True),
+        daemon=True
+    )
+    t.start()
+    return """
+    <html><body style="font-family:-apple-system,sans-serif;max-width:500px;
+    margin:60px auto;text-align:center;background:#000;color:#fff;padding:40px;">
+    <h2 style="color:#30D158;">&#10003; Force assembling</h2>
+    <p style="color:rgba(255,255,255,0.6);">Assembling with current VO timing.<br>
+    You'll get a Pushover notification when the video is ready.</p>
+    </body></html>
+    """, 202
+
+
 @app.route("/run/phase1", methods=["POST"])
 def run_phase1_route():
     import threading, datetime

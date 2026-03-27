@@ -175,7 +175,7 @@ def run_phase2(account_type="history"):
     finally:
         log_job(account_type, "2", status=job.get("status", "error"))
 
-def run_phase3(account_type="history", trigger="cron", slug=None):
+def run_phase3(account_type="history", trigger="cron", slug=None, force_assemble=False):
     """Audio + assembly + publish. Triggered by file watcher or fallback cron."""
     job = {"phase": "3", "account": account_type, "trigger": trigger}
     try:
@@ -188,7 +188,11 @@ def run_phase3(account_type="history", trigger="cron", slug=None):
                 message=f"Building final video: {script_data['title']}\nReady in ~15 minutes.",
                 priority="normal")
         audio_path, srt_path = run_audio(script_data, account_type)
-        outputs = assemble_video(clip_paths, audio_path, srt_path, script_data["title"], slug)
+        outputs = assemble_video(clip_paths, audio_path, srt_path, script_data["title"], slug,
+                                 script_data=script_data, force_assemble=force_assemble)
+        if outputs is None:
+            job.update({"status": "vo_mismatch"})
+            return
         publish_all(outputs, srt_path, script_data, account_type)
         job.update({"title": script_data["title"], "status": "success",
                     "duration": outputs["duration"],

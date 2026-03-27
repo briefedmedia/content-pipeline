@@ -419,3 +419,24 @@ def notify_build_warning(title, account_type, warning):
         ),
         priority = "normal"
     )
+
+
+def notify_vo_mismatch(title, account_type, vo_duration, target_duration):
+    """VO timing too far from target -- pipeline paused, re-record or force-assemble."""
+    gap       = abs(vo_duration - target_duration)
+    direction = "too long" if vo_duration > target_duration else "too short"
+    server_url = os.getenv("SERVER_URL", "")
+    send_notification(
+        title   = f"VO timing issue -- {gap:.0f}s {direction}",
+        message = (
+            f"Story: {title}\n"
+            f"Account: {account_type}\n\n"
+            f"Your VO: {vo_duration:.0f}s\n"
+            f"Target:  {target_duration:.0f}s\n"
+            f"Gap:     {gap:.0f}s ({direction})\n\n"
+            "Pipeline paused. Re-record your VO and drop it again,\n"
+            "or tap to force-assemble with current timing:\n"
+            f"{server_url}/approve/force-assemble"
+        ),
+        priority = "normal"
+    )

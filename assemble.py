@@ -212,21 +212,79 @@ def assemble_shorts(clean_path, audio_path, srt_path, slug, script_data=None):
     print(f"  Shorts MP4: {shorts_duration:.1f}s saved → Drive/final/{slug}/")
     return {"path": shorts_path, "drive_id": shorts_id, "srt_path": shorts_srt}
 
+def _stretch_clips(clip_paths, ratio, slug):
+    """Apply time-stretch to middle clips only; cap ratio to [0.90, 1.15].
+
+    Returns a new list of clip paths (stretched files saved alongside originals).
+    Falls back to originals on any FFmpeg error.
+    """
+    capped = max(0.90, min(1.15, ratio))
+    if abs(capped - 1.0) < 0.01:
+        return clip_paths   # no meaningful stretch needed
+
+    slug_dir    = os.path.join(TMP, slug)
+    n           = len(clip_paths)
+    # Stretch middle scenes first (index 1 through n-2), protect hook and kicker
+    stretch_idx = list(range(1, n - 1)) if n > 2 else list(range(n))
+    new_paths   = list(clip_paths)
+
+    for i in stretch_idx:
+        src  = clip_paths[i]["path"] if isinstance(clip_paths[i], dict) else clip_paths[i]
+        base = os.path.splitext(os.path.basename(src))[0]
+        dst  = os.path.join(slug_dir, f"{base}_stretched.mp4")
+        try:
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", src,
+                 "-vf", f"setpts={capped:.4f}*PTS",
+                 "-af", f"atempo={1/capped:.4f}",
+                 dst],
+                check=True, capture_output=True
+            )
+            if isinstance(clip_paths[i], dict):
+                new_paths[i] = {**clip_paths[i], "path": dst}
+            else:
+                new_paths[i] = dst
+        except Exception as e:
+            print(f"  Stretch failed for clip {i+1} ({e}) -- using original")
+
+    return new_paths
+
+
 def assemble_video(clip_paths, audio_path, srt_path, title, slug=None,
-                   music_path=None, story_groups=None, script_data=None):
+                   music_path=None, story_groups=None, script_data=None,
+                   force_assemble=False):
     """Produce clean + captioned MP4s, upload both into the story's Drive subfolder.
 
-    script_data is optional -- if provided, per-scene ambient audio is searched,
-    downloaded, and mixed into clips before assembly. If absent or ambient search
-    fails for any scene, that clip proceeds without ambient, never blocking assembly.
+    script_data is optional -- if provided, per-scene ambient audio is searched
+    and mixed, and smart VO sync is applied (mismatch > 15s aborts unless
+    force_assemble=True).
     """
     if not slug:
         slug = datetime.date.today().isoformat() + "_story"
     slug_dir = os.path.join(TMP, slug)
     os.makedirs(slug_dir, exist_ok=True)
 
-    # Per-scene ambient mix -- runs before base assembly
-    # Fails gracefully: any scene with no ambient or failed search uses original clip
+    # Smart VO sync -- compare actual VO duration to script estimate
+    if script_data and not force_assemble:
+        est_seconds = script_data.get("estimated_seconds")
+        if est_seconds:
+            from notify import notify_vo_mismatch
+            vo_duration = get_audio_duration(audio_path)
+            gap         = abs(vo_duration - est_seconds)
+            if gap > 15:
+                print(f"  VO mismatch: {vo_duration:.0f}s vs target {est_seconds:.0f}s "
+                      f"(gap {gap:.0f}s > 15s) -- aborting assembly")
+                notify_vo_mismatch(title, script_data.get("account_type", "news"),
+                                   vo_duration, est_seconds)
+                return None
+            # Apply per-clip stretch to close the gap
+            ratio = vo_duration / est_seconds
+            if abs(ratio - 1.0) >= 0.01:
+                print(f"  Applying clip stretch ratio {ratio:.3f} (VO {vo_duration:.0f}s "
+                      f"vs target {est_seconds:.0f}s)")
+                clip_paths = _stretch_clips(clip_paths, ratio, slug)
+
+    # Per-scene ambient mix -- fails gracefully per clip
     if script_data:
         scenes        = script_data.get("scenes", [])
         print(f"Searching ambient audio for {len(scenes)} scenes...")
