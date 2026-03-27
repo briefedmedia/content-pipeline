@@ -2270,8 +2270,9 @@ let pollTimer = null;
 function schedulePoll() {
   if (pollTimer) clearInterval(pollTimer);
   const s = state.pipelineStatus || {};
-  const isActive = s.phase1 === 'active' || s.phase2 === 'active' || s.phase3 === 'active';
-  const interval = isActive ? 10000 : 60000;
+  const isActive = s.phase1 === 'active' || s.phase2 === 'active' || s.phase3 === 'active'
+    || s.phase1 === 'running' || s.phase2 === 'running' || s.phase3 === 'running';
+  const interval = isActive ? 5000 : 60000;
   pollTimer = setInterval(refreshAll, interval);
 }
 
