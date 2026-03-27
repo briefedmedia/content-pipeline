@@ -17,24 +17,10 @@ load_dotenv()
 
 from breaking import app  # imports Flask app with /breaking/<id>/bypass and /breaking/<id>/hold
 from config import TMP
+from approvals import load_approvals, save_approvals
 import drive
 
 PORT = int(os.getenv("PORT", 8080))
-
-# approvals.json lives in the temp root (not story-specific)
-APPROVALS_FILE = os.path.join(TMP, "approvals.json")
-
-
-def load_approvals():
-    if os.path.exists(APPROVALS_FILE):
-        with open(APPROVALS_FILE) as f:
-            return json.load(f)
-    return {}
-
-
-def save_approvals(data):
-    with open(APPROVALS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
 
 @app.route("/")
 def dashboard():
@@ -156,7 +142,9 @@ def approval_status(date):
 def auto_approve(date):
     approvals = load_approvals()
     day_data  = approvals.get(date, {"approved": []})
-    if not day_data["approved"]:
+    if day_data.get("auto_cancelled"):
+        return "Auto-select was cancelled via dashboard -- skipping.", 200
+    if not day_data.get("approved"):
         approvals[date] = {
             "approved":  [0],
             "timestamp": datetime.datetime.now().isoformat(),
@@ -164,12 +152,42 @@ def auto_approve(date):
         }
         save_approvals(approvals)
         try:
+            import threading
             from main import run_phase2_for_story
-            run_phase2_for_story(date, 0)
+            t = threading.Thread(target=run_phase2_for_story, args=(date, 0), daemon=True)
+            t.start()
             return "Auto-approved story 1. Script and visuals generating.", 200
         except Exception as e:
             return f"Auto-approve triggered but Phase 2 failed: {e}", 500
     return f"Stories already approved: {day_data['approved']}", 200
+
+
+@app.route("/approve/<date>/cancel-auto", methods=["GET", "POST"])
+def cancel_auto_approve(date):
+    approvals = load_approvals()
+    if date not in approvals:
+        approvals[date] = {"approved": [], "timestamp": datetime.datetime.now().isoformat()}
+    approvals[date]["auto_cancelled"]    = True
+    approvals[date]["auto_cancelled_at"] = datetime.datetime.now().isoformat()
+    save_approvals(approvals)
+    return """
+    <html><body style="font-family:sans-serif;max-width:500px;margin:60px auto;text-align:center;">
+    <h2>&#10003; Auto-select cancelled</h2>
+    <p>Story #1 will not be auto-approved. You can still manually approve any story from the dashboard.</p>
+    </body></html>
+    """, 200
+
+
+@app.route("/approve/<date>/status-detail")
+def approval_status_detail(date):
+    approvals = load_approvals()
+    day = approvals.get(date, {})
+    return jsonify({
+        "approved":          day.get("approved", []),
+        "auto_cancelled":    day.get("auto_cancelled", False),
+        "auto_cancelled_at": day.get("auto_cancelled_at", None),
+        "timestamp":         day.get("timestamp", None),
+    })
 
 
 if __name__ == "__main__":
