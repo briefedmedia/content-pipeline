@@ -2,919 +2,1585 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Briefed Pipeline</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Briefed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
 :root {
-  --bg: #080b0f;
-  --surface: #0f1318;
-  --surface2: #161c24;
-  --border: #1e2a38;
-  --accent: #00d4ff;
-  --accent2: #ff6b35;
-  --green: #00e87a;
-  --yellow: #ffd166;
-  --red: #ff4757;
-  --muted: #4a5568;
-  --text: #e2e8f0;
-  --text2: #8899aa;
+  --bg: #000000;
+  --bg1: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --bg4: #222222;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.12);
+  --text: #ffffff;
+  --text2: rgba(255,255,255,0.6);
+  --text3: rgba(255,255,255,0.35);
+  --blue: #0A84FF;
+  --blue-glow: rgba(10,132,255,0.3);
+  --green: #30D158;
+  --green-glow: rgba(48,209,88,0.2);
+  --yellow: #FFD60A;
+  --yellow-glow: rgba(255,214,10,0.2);
+  --red: #FF453A;
+  --red-glow: rgba(255,69,58,0.2);
+  --orange: #FF9F0A;
+  --purple: #BF5AF2;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: var(--bg); }
 
 body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
   background: var(--bg);
   color: var(--text);
-  font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Animated grid background */
-body::before {
-  content: '';
+/* ── Background atmosphere ── */
+.atmosphere {
   position: fixed;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
   pointer-events: none;
   z-index: 0;
+  overflow: hidden;
 }
 
-/* Glow orbs */
-.orb {
-  position: fixed;
+.atm-orb {
+  position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
-  pointer-events: none;
-  z-index: 0;
-  animation: orbFloat 8s ease-in-out infinite;
-}
-.orb1 { width: 400px; height: 400px; background: rgba(0,212,255,0.06); top: -100px; right: -100px; }
-.orb2 { width: 300px; height: 300px; background: rgba(255,107,53,0.05); bottom: 10%; left: -80px; animation-delay: -4s; }
-
-@keyframes orbFloat {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-30px); }
+  filter: blur(80px);
+  opacity: 0.35;
+  animation: drift 12s ease-in-out infinite;
 }
 
-.container {
+.atm-orb-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(10,132,255,0.4) 0%, transparent 70%);
+  top: -150px; right: -100px;
+}
+
+.atm-orb-2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(48,209,88,0.2) 0%, transparent 70%);
+  bottom: 10%; left: -150px;
+  animation-delay: -6s;
+}
+
+.atm-orb-3 {
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(191,90,242,0.15) 0%, transparent 70%);
+  top: 40%; right: 10%;
+  animation-delay: -3s;
+  animation-duration: 16s;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-20px, 30px) scale(1.05); }
+  66% { transform: translate(15px, -20px) scale(0.95); }
+}
+
+/* ── Layout ── */
+.app {
   position: relative;
   z-index: 1;
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 0 24px 80px;
+  padding: 0 16px calc(24px + var(--safe-bottom));
 }
 
-/* Header */
-header {
+/* ── Header ── */
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32px 0 48px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 48px;
+  padding: calc(20px + var(--safe-top)) 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(0,0,0,0.7);
+  margin: 0 -16px;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
-.logo {
+.brand {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.logo-mark {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 36px;
-  letter-spacing: 4px;
-  color: var(--accent);
-  text-shadow: 0 0 40px rgba(0,212,255,0.4);
+.brand-name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.logo-sub {
-  font-family: 'DM Mono', monospace;
+.brand-sub {
   font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 3px;
-  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--text3);
+  letter-spacing: 0.5px;
 }
 
-.live-badge {
+.header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(0,232,122,0.08);
-  border: 1px solid rgba(0,232,122,0.2);
-  padding: 6px 14px;
+  gap: 10px;
+}
+
+.live-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(48,209,88,0.12);
+  border: 1px solid rgba(48,209,88,0.25);
+  padding: 5px 10px;
   border-radius: 20px;
-  font-family: 'DM Mono', monospace;
   font-size: 11px;
+  font-weight: 600;
   color: var(--green);
-  letter-spacing: 2px;
+  letter-spacing: 0.5px;
 }
 
 .live-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px; height: 5px;
   background: var(--green);
   border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
+  animation: pulse-dot 2s ease-in-out infinite;
 }
 
-@keyframes pulse {
+@keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 0.5; transform: scale(0.7); }
 }
 
-/* Section labels */
-.section-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 20px;
+.icon-btn {
+  width: 36px; height: 36px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text2);
+  font-size: 15px;
+  -webkit-user-select: none;
+}
+
+.icon-btn:active { transform: scale(0.93); background: var(--bg4); }
+
+/* ── Breaking News Banner ── */
+.breaking-banner {
+  display: none;
+  background: linear-gradient(135deg, rgba(255,69,58,0.15), rgba(255,159,10,0.1));
+  border: 1px solid rgba(255,69,58,0.3);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  animation: breakingPulse 3s ease-in-out infinite;
+}
+
+.breaking-banner.visible { display: block; }
+
+@keyframes breakingPulse {
+  0%, 100% { border-color: rgba(255,69,58,0.3); }
+  50% { border-color: rgba(255,69,58,0.6); }
+}
+
+.breaking-top {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
-/* Today's pipeline flow */
-.pipeline-flow {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  margin-bottom: 48px;
-  background: var(--surface);
+.breaking-badge {
+  background: var(--red);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.breaking-urgency { font-size: 12px; color: var(--red); font-weight: 600; }
+.breaking-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; line-height: 1.3; }
+
+.breaking-actions { display: flex; gap: 8px; }
+
+.btn-breaking-bypass {
+  flex: 1; padding: 11px;
+  background: var(--red);
+  color: white; font-size: 13px; font-weight: 600;
+  border: none; border-radius: var(--r-sm); cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-breaking-hold {
+  flex: 1; padding: 11px;
+  background: var(--bg3);
+  color: var(--text2); font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border2); border-radius: var(--r-sm); cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-breaking-bypass:active { transform: scale(0.96); opacity: 0.85; }
+.btn-breaking-hold:active { transform: scale(0.96); }
+
+/* ── Stat Cards Row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+.stat-card {
+  background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-lg);
+  padding: 16px;
+  position: relative;
   overflow: hidden;
+  transition: transform 0.2s;
 }
 
-.phase-block {
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  opacity: 0.5;
+}
+
+.stat-card-blue::before { background: linear-gradient(90deg, transparent, var(--blue), transparent); }
+.stat-card-green::before { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+.stat-card-yellow::before { background: linear-gradient(90deg, transparent, var(--yellow), transparent); }
+.stat-card-red::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+
+.stat-icon {
+  font-size: 20px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.stat-val {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+
+.stat-card-blue .stat-val { color: var(--blue); }
+.stat-card-green .stat-val { color: var(--green); }
+.stat-card-yellow .stat-val { color: var(--yellow); }
+.stat-card-red .stat-val { color: var(--red); }
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  letter-spacing: 0.3px;
+}
+
+/* ── Section header ── */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 0 12px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.section-action {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.section-action:active { background: rgba(10,132,255,0.1); }
+
+/* ── Pipeline Flow ── */
+.pipeline-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.pipeline-head {
+  padding: 16px 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.pipeline-date {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pipeline-time {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+.phases {
+  display: flex;
+  padding: 0;
+}
+
+.phase {
   flex: 1;
-  padding: 24px 20px;
+  padding: 16px 14px;
   position: relative;
+  border-right: 1px solid var(--border);
   transition: background 0.2s;
 }
 
-.phase-block:not(:last-child)::after {
-  content: '';
+.phase:last-child { border-right: none; }
+
+.phase-arrow {
   position: absolute;
-  right: -1px;
+  right: -8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 0;
-  height: 0;
-  border-top: 12px solid transparent;
-  border-bottom: 12px solid transparent;
-  border-left: 12px solid var(--border);
+  width: 16px;
+  height: 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: var(--text3);
   z-index: 2;
 }
 
-.phase-block:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--border);
-}
-
-.phase-block.done { background: rgba(0,232,122,0.04); }
-.phase-block.active { background: rgba(0,212,255,0.06); }
-.phase-block.waiting { background: rgba(255,209,102,0.04); }
-.phase-block.error { background: rgba(255,71,87,0.06); }
-.phase-block.idle { background: transparent; }
+.phase.done { background: rgba(48,209,88,0.04); }
+.phase.active { background: rgba(10,132,255,0.06); }
+.phase.waiting { background: rgba(255,214,10,0.04); }
+.phase.error { background: rgba(255,69,58,0.06); }
 
 .phase-num {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 48px;
-  line-height: 1;
-  margin-bottom: 4px;
-  opacity: 0.15;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.phase-block.done .phase-num { color: var(--green); opacity: 0.3; }
-.phase-block.active .phase-num { color: var(--accent); opacity: 0.4; }
-.phase-block.waiting .phase-num { color: var(--yellow); opacity: 0.3; }
-.phase-block.error .phase-num { color: var(--red); opacity: 0.3; }
-
-.phase-name {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  color: var(--text2);
-}
-
-.phase-status {
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.phase-block.done .phase-status { color: var(--green); }
-.phase-block.active .phase-status { color: var(--accent); }
-.phase-block.waiting .phase-status { color: var(--yellow); }
-.phase-block.error .phase-status { color: var(--red); }
-.phase-block.idle .phase-status { color: var(--muted); }
-
-.phase-time {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-}
-
-.phase-indicator {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 8px;
-  height: 8px;
+.phase-dot {
+  width: 5px; height: 5px;
   border-radius: 50%;
 }
 
-.phase-block.done .phase-indicator { background: var(--green); }
-.phase-block.active .phase-indicator { background: var(--accent); animation: pulse 1.5s infinite; }
-.phase-block.waiting .phase-indicator { background: var(--yellow); animation: pulse 2s infinite; }
-.phase-block.error .phase-indicator { background: var(--red); }
-.phase-block.idle .phase-indicator { background: var(--border); }
+.phase.done .phase-dot { background: var(--green); }
+.phase.active .phase-dot { background: var(--blue); animation: pulse-dot 1.5s infinite; }
+.phase.waiting .phase-dot { background: var(--yellow); animation: pulse-dot 2s infinite; }
+.phase.error .phase-dot { background: var(--red); }
+.phase.idle .phase-dot { background: var(--bg4); }
 
-/* Story cards */
-.stories-grid {
+.phase-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 3px;
+  color: var(--text);
+}
+
+.phase.done .phase-label { color: var(--green); }
+.phase.active .phase-label { color: var(--blue); }
+.phase.waiting .phase-label { color: var(--yellow); }
+.phase.error .phase-label { color: var(--red); }
+
+.phase-detail {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.3;
+}
+
+.phase-time-str {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+/* Countdown */
+.countdown-bar {
+  padding: 12px 18px;
+  background: rgba(255,214,10,0.06);
+  border-top: 1px solid rgba(255,214,10,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.countdown-label {
+  font-size: 12px;
+  color: var(--yellow);
+  font-weight: 500;
+}
+
+.countdown-timer {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--yellow);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+/* ── Controls Panel ── */
+.controls-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-  margin-bottom: 48px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 700px) {
+  .controls-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.ctrl-btn {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  -webkit-user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.ctrl-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--ctrl-color, var(--blue));
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.ctrl-btn:active { transform: scale(0.96); }
+.ctrl-btn:active::before { opacity: 0.08; }
+
+.ctrl-icon {
+  font-size: 22px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.ctrl-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.ctrl-desc {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.3;
+}
+
+.ctrl-btn.danger { --ctrl-color: var(--red); }
+.ctrl-btn.warning { --ctrl-color: var(--yellow); }
+.ctrl-btn.success { --ctrl-color: var(--green); }
+.ctrl-btn.primary { --ctrl-color: var(--blue); }
+
+.ctrl-btn.cancel-auto-active {
+  border-color: rgba(255,214,10,0.4);
+  background: rgba(255,214,10,0.06);
+}
+
+/* ── Stories ── */
+.stories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .story-card {
-  background: var(--surface);
+  background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  position: relative;
+  border-radius: var(--r-xl);
   overflow: hidden;
-  transition: border-color 0.2s, transform 0.2s;
-  cursor: default;
-  animation: fadeUp 0.4s ease both;
+  transition: border-color 0.2s;
+  animation: slideUp 0.35s ease both;
 }
 
-.story-card:hover {
-  border-color: rgba(0,212,255,0.3);
-  transform: translateY(-2px);
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.story-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 12px 0 0 12px;
+.story-card.approved { border-color: rgba(48,209,88,0.35); }
+.story-card.approved .story-top { background: rgba(48,209,88,0.04); }
+
+.story-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
 }
 
-.story-card.score-9 { border-color: rgba(0,232,122,0.2); }
-.story-card.score-9::before { background: var(--green); }
-.story-card.score-8::before { background: var(--accent); }
-.story-card.score-7::before { background: var(--yellow); }
-
-.story-rank {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 48px;
-  color: var(--border);
-  position: absolute;
-  right: 16px;
-  top: 8px;
-  line-height: 1;
+.story-rank-badge {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text3);
+  flex-shrink: 0;
 }
 
-.story-score {
-  display: inline-flex;
+.story-approved .story-rank-badge {
+  background: rgba(48,209,88,0.1);
+  border-color: rgba(48,209,88,0.3);
+  color: var(--green);
+}
+
+.story-content { flex: 1; min-width: 0; }
+
+.story-score-row {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 5px;
 }
 
-.score-9 .story-score { background: rgba(0,232,122,0.1); color: var(--green); border: 1px solid rgba(0,232,122,0.2); }
-.score-8 .story-score { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
-.score-7 .story-score { background: rgba(255,209,102,0.1); color: var(--yellow); border: 1px solid rgba(255,209,102,0.2); }
+.score-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+.score-9 { background: rgba(48,209,88,0.15); color: var(--green); }
+.score-8 { background: rgba(10,132,255,0.15); color: var(--blue); }
+.score-7 { background: rgba(255,214,10,0.15); color: var(--yellow); }
+
+.story-source {
+  font-size: 11px;
+  color: var(--text3);
+}
 
 .story-title {
   font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
-  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-bottom: 6px;
   color: var(--text);
-  padding-right: 40px;
 }
 
 .story-hook {
   font-size: 12px;
   color: var(--text2);
   line-height: 1.5;
+  display: none;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg1);
   font-style: italic;
-  border-left: 2px solid var(--border);
-  padding-left: 10px;
-  margin-top: 8px;
 }
 
-.story-stages {
+.story-card.expanded .story-hook { display: block; }
+
+.story-actions {
   display: flex;
-  gap: 6px;
-  margin-top: 14px;
+  gap: 0;
+  border-top: 1px solid var(--border);
 }
 
-.stage-pip {
+.story-action-btn {
   flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--border);
+  padding: 12px 8px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.story-action-btn:last-child { border-right: none; }
+.story-action-btn:active { background: var(--bg3); }
+
+.story-action-btn.approve {
+  color: var(--green);
+}
+
+.story-action-btn.approve:active { background: rgba(48,209,88,0.08); }
+
+.story-action-btn.approved-state {
+  color: var(--green);
+  background: rgba(48,209,88,0.06);
+}
+
+.story-stages-bar {
+  display: flex;
+  gap: 3px;
+  padding: 0 16px 12px;
+}
+
+.stage-seg {
+  flex: 1;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--bg4);
+}
+
+.stage-seg.done { background: var(--green); }
+.stage-seg.active {
+  background: var(--blue);
   position: relative;
   overflow: hidden;
 }
 
-.stage-pip.done { background: var(--green); }
-.stage-pip.active { background: var(--accent); }
-.stage-pip.active::after {
+.stage-seg.active::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
   animation: shimmer 1.5s infinite;
 }
+
 @keyframes shimmer {
   from { transform: translateX(-100%); }
   to { transform: translateX(100%); }
 }
 
-/* Error section */
-.error-list {
+/* ── Errors ── */
+.error-card {
+  background: rgba(255,69,58,0.06);
+  border: 1px solid rgba(255,69,58,0.2);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 48px;
-}
-
-.error-item {
-  background: rgba(255,71,87,0.05);
-  border: 1px solid rgba(255,71,87,0.15);
-  border-radius: 10px;
-  padding: 16px 20px;
-  display: flex;
+  gap: 12px;
   align-items: flex-start;
-  gap: 14px;
+  margin-bottom: 10px;
+  animation: slideUp 0.3s ease both;
 }
 
-.error-icon {
-  width: 32px;
-  height: 32px;
-  background: rgba(255,71,87,0.1);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.error-dot {
+  width: 8px; height: 8px;
+  background: var(--red);
+  border-radius: 50%;
+  margin-top: 4px;
   flex-shrink: 0;
-  font-size: 14px;
+  animation: pulse-dot 2s infinite;
 }
 
 .error-phase {
-  font-family: 'DM Mono', monospace;
   font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  font-weight: 700;
   color: var(--red);
-  margin-bottom: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
 }
 
-.error-msg {
-  font-size: 13px;
+.error-msg { font-size: 13px; color: var(--text2); line-height: 1.4; }
+.error-time { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* ── API Cost ── */
+.cost-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.cost-head {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.cost-title { font-size: 13px; font-weight: 600; }
+.cost-reset { font-size: 11px; color: var(--text3); }
+
+.cost-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 14px 16px;
+  gap: 16px;
+}
+
+.cost-item { }
+.cost-item-label { font-size: 10px; color: var(--text3); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+.cost-item-val { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.cost-item-val.total { color: var(--blue); }
+.cost-item-val.daily { color: var(--text2); }
+
+.cost-bar-wrap { padding: 0 16px 14px; }
+.cost-bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+.cost-bar { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+.cost-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--blue), var(--purple)); transition: width 0.8s ease; }
+
+/* ── Drive quick links ── */
+.drive-links {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.drive-links::-webkit-scrollbar { display: none; }
+
+.drive-link {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text2);
-  line-height: 1.4;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
-.error-time {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-  margin-top: 4px;
-}
+.drive-link:active { background: var(--bg3); transform: scale(0.96); }
+.drive-link .link-icon { font-size: 14px; }
 
-/* Search */
+/* ── Search ── */
 .search-wrap {
   position: relative;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 
 .search-input {
   width: 100%;
-  background: var(--surface);
+  background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 48px 14px 18px;
+  border-radius: var(--r-lg);
+  padding: 12px 16px 12px 40px;
+  font-size: 15px;
   color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
   outline: none;
   transition: border-color 0.2s;
+  -webkit-appearance: none;
 }
 
-.search-input:focus { border-color: var(--accent); }
-.search-input::placeholder { color: var(--muted); }
+.search-input:focus { border-color: var(--blue); }
+.search-input::placeholder { color: var(--text3); }
 
 .search-icon {
   position: absolute;
-  right: 16px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--muted);
-  font-size: 16px;
+  color: var(--text3);
+  font-size: 15px;
   pointer-events: none;
 }
 
-/* History timeline */
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+/* ── History ── */
+.history-items { display: flex; flex-direction: column; gap: 8px; }
 
-.history-day {
-  background: var(--surface);
+.history-item {
+  background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   transition: border-color 0.2s;
 }
 
-.history-day:hover { border-color: rgba(0,212,255,0.2); }
+.history-item:active { border-color: var(--border2); }
 
-.history-day-header {
+.history-row {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
+  padding: 13px 16px;
+  gap: 12px;
   cursor: pointer;
-  gap: 16px;
 }
 
-.history-date {
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  color: var(--text2);
-  min-width: 100px;
-}
-
-.history-title {
-  font-size: 13px;
-  font-weight: 500;
-  flex: 1;
-  color: var(--text);
-}
-
-.history-pills {
-  display: flex;
-  gap: 6px;
-}
-
-.pill {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  letter-spacing: 1px;
-}
-
-.pill-success { background: rgba(0,232,122,0.1); color: var(--green); border: 1px solid rgba(0,232,122,0.15); }
-.pill-error { background: rgba(255,71,87,0.1); color: var(--red); border: 1px solid rgba(255,71,87,0.15); }
-.pill-pending { background: rgba(255,209,102,0.1); color: var(--yellow); border: 1px solid rgba(255,209,102,0.15); }
-
-.history-expand {
-  color: var(--muted);
-  font-size: 12px;
-  transition: transform 0.2s;
-}
-
-.history-day.open .history-expand { transform: rotate(180deg); }
-
-.history-detail {
-  display: none;
-  padding: 0 20px 16px;
-  border-top: 1px solid var(--border);
-}
-
-.history-day.open .history-detail { display: block; }
-
-.history-mini-flow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 0;
-}
-
-.mini-phase {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-}
-
-.mini-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.history-icon {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
   flex-shrink: 0;
 }
 
-.mini-arrow {
-  color: var(--border);
-  font-size: 14px;
+.history-icon.success { background: rgba(48,209,88,0.12); }
+.history-icon.error { background: rgba(255,69,58,0.12); }
+.history-icon.partial { background: rgba(255,214,10,0.12); }
+
+.history-info { flex: 1; min-width: 0; }
+.history-date { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 2px; }
+.history-story { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-status-row { display: flex; gap: 5px; margin-top: 5px; }
+
+.mini-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
 }
 
-/* Loading state */
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 0;
-  gap: 16px;
+.mini-pill.ok { background: rgba(48,209,88,0.12); color: var(--green); }
+.mini-pill.err { background: rgba(255,69,58,0.12); color: var(--red); }
+.mini-pill.na { background: var(--bg4); color: var(--text3); }
+
+.history-chevron { color: var(--text3); font-size: 12px; transition: transform 0.2s; }
+.history-item.open .history-chevron { transform: rotate(90deg); }
+
+.history-expand-content {
+  display: none;
+  padding: 0 16px 14px;
+  border-top: 1px solid var(--border);
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
+.history-item.open .history-expand-content { display: block; }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.loading-text {
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: var(--muted);
-  text-transform: uppercase;
-}
-
-/* Empty state */
-.empty {
-  text-align: center;
-  padding: 48px;
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  letter-spacing: 2px;
-}
-
-/* Stat bar */
-.stat-bar {
-  display: flex;
-  gap: 1px;
-  margin-bottom: 48px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.stat-block {
-  flex: 1;
-  background: var(--surface);
-  padding: 20px 24px;
-  border: 1px solid var(--border);
-}
-
-.stat-block:first-child { border-radius: 12px 0 0 12px; }
-.stat-block:last-child { border-radius: 0 12px 12px 0; }
-
-.stat-val {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 40px;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.stat-block:nth-child(1) .stat-val { color: var(--accent); }
-.stat-block:nth-child(2) .stat-val { color: var(--green); }
-.stat-block:nth-child(3) .stat-val { color: var(--yellow); }
-.stat-block:nth-child(4) .stat-val { color: var(--red); }
-
-.stat-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-/* Refresh btn */
-.refresh-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 2px;
-  cursor: pointer;
-  transition: all 0.2s;
+.history-mini-timeline {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 12px 0 8px;
 }
 
-.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
-.refresh-btn.spinning .refresh-icon { animation: spin 0.8s linear infinite; }
+.hmt-phase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.hmt-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+
+.hmt-dot.ok { background: var(--green); }
+.hmt-dot.err { background: var(--red); }
+.hmt-dot.na { background: var(--bg4); border: 1px solid var(--border2); }
+
+.hmt-label { font-size: 9px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.hmt-line { flex: 1; height: 1px; background: var(--border); }
+
+/* ── Loading / Empty ── */
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+}
+
+.loader-ring {
+  width: 32px; height: 32px;
+  border: 2px solid var(--bg4);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { font-size: 12px; color: var(--text3); letter-spacing: 0.5px; }
+
+.empty-state {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ── Toast ── */
+.toast-container {
+  position: fixed;
+  bottom: calc(20px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.toast {
+  background: rgba(30,30,30,0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  animation: toastIn 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Utility ── */
+.hidden { display: none !important; }
+.mt-8 { margin-top: 8px; }
+
+/* ── Tablet / Desktop ── */
+@media (min-width: 768px) {
+  .app { padding: 0 24px calc(40px + var(--safe-bottom)); }
+  .header { padding-top: 28px; }
+  .brand-name { font-size: 26px; }
+  .stories-list { display: grid; grid-template-columns: repeat(2, 1fr); }
+  .story-card { display: flex; flex-direction: column; }
+  .story-stages-bar { margin-top: auto; }
+}
+
+@media (min-width: 1024px) {
+  .stories-list { grid-template-columns: repeat(3, 1fr); }
+  .phases { }
+}
 </style>
 </head>
 <body>
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
 
-<div class="container">
-  <header>
-    <div class="logo">
-      <div class="logo-mark">BRIEFED</div>
-      <div class="logo-sub">Pipeline Control</div>
+<div class="atmosphere">
+  <div class="atm-orb atm-orb-1"></div>
+  <div class="atm-orb atm-orb-2"></div>
+  <div class="atm-orb atm-orb-3"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-name">Briefed</div>
+      <div class="brand-sub">Pipeline Control</div>
     </div>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="refresh-btn" onclick="loadAll()">
-        <span class="refresh-icon">↻</span>
-        <span>REFRESH</span>
-      </button>
-      <div class="live-badge">
-        <div class="live-dot"></div>
-        LIVE
-      </div>
+    <div class="header-right">
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+      <div class="icon-btn" onclick="refreshAll()" id="refreshBtn" title="Refresh">↻</div>
     </div>
   </header>
 
-  <!-- Stats Bar -->
-  <div class="stat-bar" id="statBar">
-    <div class="stat-block"><div class="stat-val" id="statRuns">—</div><div class="stat-label">Runs This Week</div></div>
-    <div class="stat-block"><div class="stat-val" id="statSuccess">—</div><div class="stat-label">Successful</div></div>
-    <div class="stat-block"><div class="stat-val" id="statPending">—</div><div class="stat-label">Awaiting Input</div></div>
-    <div class="stat-block"><div class="stat-val" id="statErrors">—</div><div class="stat-label">Errors</div></div>
-  </div>
-
-  <!-- Today's pipeline -->
-  <div class="section-label">Today's Pipeline — <span id="todayDate" style="color:var(--text2)"></span></div>
-
-  <div class="pipeline-flow" id="pipelineFlow">
-    <div class="phase-block idle">
-      <div class="phase-indicator"></div>
-      <div class="phase-num">1</div>
-      <div class="phase-name">Discovery</div>
-      <div class="phase-status">Loading...</div>
+  <!-- Breaking news banner -->
+  <div class="breaking-banner" id="breakingBanner">
+    <div class="breaking-top">
+      <span class="breaking-badge">BREAKING</span>
+      <span class="breaking-urgency" id="breakingUrgency">9/10 Urgency</span>
     </div>
-    <div class="phase-block idle">
-      <div class="phase-indicator"></div>
-      <div class="phase-num">2</div>
-      <div class="phase-name">Production</div>
-      <div class="phase-status">Loading...</div>
-    </div>
-    <div class="phase-block idle">
-      <div class="phase-indicator"></div>
-      <div class="phase-num">3</div>
-      <div class="phase-name">Assembly</div>
-      <div class="phase-status">Loading...</div>
-    </div>
-    <div class="phase-block idle">
-      <div class="phase-indicator"></div>
-      <div class="phase-num">✓</div>
-      <div class="phase-name">Published</div>
-      <div class="phase-status">Loading...</div>
+    <div class="breaking-title" id="breakingTitle">Loading breaking story...</div>
+    <div class="breaking-actions">
+      <button class="btn-breaking-bypass" onclick="breakingAction('bypass')">⚡ Use AI Voice Now</button>
+      <button class="btn-breaking-hold" onclick="breakingAction('hold')">🎙 Hold for My VO</button>
     </div>
   </div>
 
-  <!-- Today's stories -->
-  <div class="section-label">Today's Stories</div>
-  <div class="stories-grid" id="storiesGrid">
-    <div class="loading"><div class="loading-spinner"></div><div class="loading-text">Fetching stories</div></div>
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card stat-card-blue">
+      <span class="stat-icon">📡</span>
+      <div class="stat-val" id="statRuns">—</div>
+      <div class="stat-label">Runs This Week</div>
+    </div>
+    <div class="stat-card stat-card-green">
+      <span class="stat-icon">✅</span>
+      <div class="stat-val" id="statComplete">—</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card stat-card-yellow">
+      <span class="stat-icon">⏳</span>
+      <div class="stat-val" id="statPending">—</div>
+      <div class="stat-label">Awaiting Input</div>
+    </div>
+    <div class="stat-card stat-card-red">
+      <span class="stat-icon">⚠️</span>
+      <div class="stat-val" id="statErrors">—</div>
+      <div class="stat-label">Errors</div>
+    </div>
+  </div>
+
+  <!-- Today's Pipeline -->
+  <div class="section-head">
+    <div class="section-title">Today's Pipeline</div>
+    <div class="section-action" id="todayStr"></div>
+  </div>
+
+  <div class="pipeline-card">
+    <div class="pipeline-head">
+      <div class="pipeline-date" id="pipelineDateLabel">Loading...</div>
+      <div class="pipeline-time" id="pipelineTimeLabel"></div>
+    </div>
+    <div class="phases" id="phasesRow">
+      <div class="phase idle">
+        <div class="phase-num"><div class="phase-dot"></div>Phase 1</div>
+        <div class="phase-label">Discovery</div>
+        <div class="phase-detail">Not yet run</div>
+      </div>
+      <div class="phase-arrow">›</div>
+      <div class="phase idle">
+        <div class="phase-num"><div class="phase-dot"></div>Phase 2</div>
+        <div class="phase-label">Production</div>
+        <div class="phase-detail">Waiting</div>
+      </div>
+      <div class="phase-arrow">›</div>
+      <div class="phase idle">
+        <div class="phase-num"><div class="phase-dot"></div>Phase 3</div>
+        <div class="phase-label">Assembly</div>
+        <div class="phase-detail">Waiting</div>
+      </div>
+      <div class="phase-arrow">›</div>
+      <div class="phase idle">
+        <div class="phase-num"><div class="phase-dot"></div>Final</div>
+        <div class="phase-label">Published</div>
+        <div class="phase-detail">Auto-publish off</div>
+      </div>
+    </div>
+    <!-- Countdown shows when Phase 1 done but no approval yet -->
+    <div class="countdown-bar hidden" id="countdownBar">
+      <div class="countdown-label">⏱ Auto-select in</div>
+      <div class="countdown-timer" id="countdownTimer">1:58:00</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="section-head">
+    <div class="section-title">Controls</div>
+  </div>
+
+  <div class="controls-grid">
+    <div class="ctrl-btn primary" onclick="triggerPhase1()">
+      <span class="ctrl-icon">📡</span>
+      <div class="ctrl-label">Run Discovery</div>
+      <div class="ctrl-desc">Fetch fresh stories now</div>
+    </div>
+    <div class="ctrl-btn warning" id="cancelAutoBtn" onclick="cancelAutoSelect()">
+      <span class="ctrl-icon">🚫</span>
+      <div class="ctrl-label">Cancel Auto-Select</div>
+      <div class="ctrl-desc">Don't auto-approve story #1</div>
+    </div>
+    <div class="ctrl-btn success" onclick="triggerTTSFallback()">
+      <span class="ctrl-icon">🎙</span>
+      <div class="ctrl-label">Force TTS Fallback</div>
+      <div class="ctrl-desc">Assemble with AI voice now</div>
+    </div>
+    <div class="ctrl-btn danger" onclick="rerunDiscovery()">
+      <span class="ctrl-icon">🔄</span>
+      <div class="ctrl-label">Re-run Discovery</div>
+      <div class="ctrl-desc">Discard today's stories</div>
+    </div>
+  </div>
+
+  <!-- Drive Quick Links -->
+  <div class="section-head">
+    <div class="section-title">Drive</div>
+  </div>
+  <div class="drive-links" id="driveLinks">
+    <a class="drive-link" href="#" target="_blank"><span class="link-icon">📄</span>Today's Script</a>
+    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🎬</span>Silent Preview</a>
+    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🎥</span>Final Video</a>
+    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🖼</span>Images</a>
+    <a class="drive-link" href="#" target="_blank"><span class="link-icon">🔊</span>Audio</a>
+  </div>
+
+  <!-- API Cost -->
+  <div class="cost-card">
+    <div class="cost-head">
+      <div class="cost-title">💸 API Cost Tracker</div>
+      <div class="cost-reset" id="costReset">Resets monthly</div>
+    </div>
+    <div class="cost-grid">
+      <div class="cost-item">
+        <div class="cost-item-label">This Story</div>
+        <div class="cost-item-val" id="costStory">$—</div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-item-label">Today</div>
+        <div class="cost-item-val daily" id="costToday">$—</div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-item-label">This Month</div>
+        <div class="cost-item-val total" id="costMonth">$—</div>
+      </div>
+    </div>
+    <div class="cost-bar-wrap">
+      <div class="cost-bar-label">
+        <span>Monthly budget</span>
+        <span id="costBudgetLabel">$0 / $50</span>
+      </div>
+      <div class="cost-bar">
+        <div class="cost-bar-fill" id="costBarFill" style="width:0%"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Errors -->
-  <div id="errorsSection" style="display:none;">
-    <div class="section-label">Errors Requiring Attention</div>
-    <div class="error-list" id="errorList"></div>
+  <div id="errorsSection" class="hidden">
+    <div class="section-head">
+      <div class="section-title">⚠ Errors</div>
+    </div>
+    <div id="errorsList"></div>
+  </div>
+
+  <!-- Today's Stories -->
+  <div class="section-head">
+    <div class="section-title">Today's Stories</div>
+    <div class="section-action" id="storiesCount"></div>
+  </div>
+  <div id="storiesContainer">
+    <div class="loader"><div class="loader-ring"></div><div class="loader-text">Fetching stories</div></div>
   </div>
 
   <!-- History -->
-  <div class="section-label" style="margin-top:48px;">Past 7 Days</div>
+  <div class="section-head" style="margin-top:32px;">
+    <div class="section-title">Past 7 Days</div>
+  </div>
   <div class="search-wrap">
-    <input type="text" class="search-input" id="searchInput" placeholder="Search by date (2026-03-25) or story title..." oninput="filterHistory()">
     <span class="search-icon">⌕</span>
+    <input class="search-input" id="searchInput" type="search" placeholder="Search date or story..." oninput="filterHistory()">
   </div>
-  <div class="history-list" id="historyList">
-    <div class="loading"><div class="loading-spinner"></div><div class="loading-text">Loading history</div></div>
+  <div class="history-items" id="historyContainer">
+    <div class="loader"><div class="loader-ring"></div><div class="loader-text">Loading history</div></div>
   </div>
-</div>
+
+</div><!-- /app -->
 
 <script>
 const API = window.location.origin;
+const BUDGET = 50;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────
+let state = {
+  today: new Date().toISOString().split('T')[0],
+  candidates: [],
+  approvals: {},
+  pipelineStatus: {},
+  history: [],
+  autoCancelled: false,
+  phase1Time: null,
+  countdownInterval: null,
+};
 
-function fmtTime(iso) {
+// ── Utils ──────────────────────────────────────────────────────────────────
+
+function fmt(iso) {
   if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  } catch { return iso; }
+  try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch { return ''; }
 }
 
-function fmtDate(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  } catch { return iso; }
+function fmtDate(d) {
+  if (!d) return '';
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }); }
+  catch { return d; }
 }
 
-function today() {
-  return new Date().toISOString().split('T')[0];
+function fmtDateShort(d) {
+  if (!d) return '';
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+  catch { return d; }
 }
 
-// ── Load pipeline data ─────────────────────────────────────────────────────
+function toast(msg, icon = '✓') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 2500);
+}
 
-async function loadAll() {
-  const btn = document.querySelector('.refresh-btn');
-  btn.classList.add('spinning');
-  document.getElementById('todayDate').textContent = fmtDate(today());
-
+async function apiFetch(url, opts = {}) {
   try {
-    const [statusRes, candidatesRes, historyRes] = await Promise.allSettled([
-      fetch(`${API}/status`),
-      fetch(`${API}/candidates/today`),
-      fetch(`${API}/pipeline/history`)
-    ]);
+    const r = await fetch(API + url, opts);
+    if (!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch (e) { return null; }
+}
 
-    const status = statusRes.status === 'fulfilled' && statusRes.value.ok
-      ? await statusRes.value.json() : {};
+// ── Load all data ──────────────────────────────────────────────────────────
 
-    const candidates = candidatesRes.status === 'fulfilled' && candidatesRes.value.ok
-      ? await candidatesRes.value.json() : [];
+async function refreshAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.style.animation = 'spin 0.7s linear infinite';
 
-    const history = historyRes.status === 'fulfilled' && historyRes.value.ok
-      ? await historyRes.value.json() : [];
+  document.getElementById('todayStr').textContent = fmtDate(state.today);
+  document.getElementById('pipelineDateLabel').textContent = fmtDate(state.today);
+  document.getElementById('pipelineTimeLabel').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-    renderPipeline(status);
-    renderStories(candidates);
-    renderErrors(status.errors || []);
-    renderHistory(history);
-    renderStats(status, history);
+  const [candidates, approvalStatus, history, status] = await Promise.all([
+    apiFetch('/candidates/today'),
+    apiFetch(`/approve/${state.today}/status`),
+    apiFetch('/pipeline/history'),
+    apiFetch('/status'),
+  ]);
 
-  } catch(e) {
-    console.error(e);
+  if (candidates) { state.candidates = candidates; renderStories(); }
+  if (approvalStatus) {
+    state.approvals = approvalStatus;
+    state.autoCancelled = approvalStatus.auto_cancelled || false;
+    state.phase1Time = approvalStatus.timestamp;
+    updateCancelBtn();
+    updateCountdown();
   }
-  btn.classList.remove('spinning');
+  if (history) { state.history = history; renderHistory(); renderStats(); }
+  if (status) { state.pipelineStatus = status; renderPipeline(); }
+
+  renderCosts();
+  btn.style.animation = '';
 }
 
-// ── Render pipeline flow ───────────────────────────────────────────────────
+// ── Pipeline render ────────────────────────────────────────────────────────
 
-function renderPipeline(status) {
+function renderPipeline() {
+  const s = state.pipelineStatus;
+  const approved = state.approvals.approved || [];
   const phases = [
     {
-      num: '1', name: 'Discovery',
-      state: status.phase1 || 'idle',
-      detail: status.phase1 === 'done' ? `${status.story_count || 0} stories found` :
-              status.phase1 === 'waiting' ? 'Awaiting your approval tap' :
-              status.phase1 === 'error' ? 'Discovery failed' : 'Not yet run',
-      time: status.phase1_time
+      label: 'Discovery', num: '1',
+      state: s.phase1 || (state.candidates.length ? 'done' : 'idle'),
+      detail: state.candidates.length ? `${state.candidates.length} stories found` :
+              s.phase1 === 'error' ? 'Discovery failed' : 'Not yet run',
+      time: s.phase1_time || state.phase1Time
     },
     {
-      num: '2', name: 'Production',
-      state: status.phase2 || 'idle',
-      detail: status.phase2 === 'done' ? 'Images, clips, preview ready' :
-              status.phase2 === 'active' ? 'Generating visuals...' :
-              status.phase2 === 'waiting' ? 'Drop your VO recording' :
-              status.phase2 === 'error' ? 'Production failed' : 'Waiting for Phase 1',
-      time: status.phase2_time
+      label: 'Production', num: '2',
+      state: s.phase2 || (approved.length ? 'active' : 'idle'),
+      detail: s.phase2 === 'done' ? 'Preview ready for VO' :
+              s.phase2 === 'active' ? 'Generating visuals…' :
+              approved.length ? 'Approved — generating…' :
+              s.phase2 === 'error' ? 'Failed' : 'Awaiting approval',
+      time: s.phase2_time
     },
     {
-      num: '3', name: 'Assembly',
-      state: status.phase3 || 'idle',
-      detail: status.phase3 === 'done' ? `${status.duration || ''}s video ready` :
-              status.phase3 === 'active' ? 'Assembling final video...' :
-              status.phase3 === 'error' ? 'Assembly failed' : 'Waiting for VO',
-      time: status.phase3_time
+      label: 'Assembly', num: '3',
+      state: s.phase3 || 'idle',
+      detail: s.phase3 === 'done' ? `${s.duration || '?'}s video ready` :
+              s.phase3 === 'active' ? 'Assembling video…' :
+              s.phase3 === 'error' ? 'Failed' : 'Awaiting VO drop',
+      time: s.phase3_time
     },
     {
-      num: '✓', name: 'Published',
-      state: status.published ? 'done' : 'idle',
-      detail: status.published ? 'Live on platforms' : 'Auto-publish disabled',
-      time: status.publish_time
+      label: 'Published', num: '✓',
+      state: s.published ? 'done' : 'idle',
+      detail: s.published ? 'Live on platforms' : 'Auto-publish off',
+      time: s.publish_time
     }
   ];
 
-  document.getElementById('pipelineFlow').innerHTML = phases.map(p => `
-    <div class="phase-block ${p.state}">
-      <div class="phase-indicator"></div>
-      <div class="phase-num">${p.num}</div>
-      <div class="phase-name">${p.name}</div>
-      <div class="phase-status">${p.detail}</div>
-      ${p.time ? `<div class="phase-time">${fmtTime(p.time)}</div>` : ''}
+  const arrows = `<div class="phase-arrow">›</div>`;
+  document.getElementById('phasesRow').innerHTML = phases.map((p, i) => `
+    <div class="phase ${p.state}">
+      <div class="phase-num"><div class="phase-dot"></div>Phase ${p.num}</div>
+      <div class="phase-label">${p.label}</div>
+      <div class="phase-detail">${p.detail}</div>
+      ${p.time ? `<div class="phase-time-str">${fmt(p.time)}</div>` : ''}
     </div>
+    ${i < phases.length - 1 ? arrows : ''}
   `).join('');
+
+  // Show countdown if phase1 done and no approvals yet
+  const bar = document.getElementById('countdownBar');
+  if (state.candidates.length && !(state.approvals.approved || []).length && !state.autoCancelled) {
+    bar.classList.remove('hidden');
+    startCountdown();
+  } else {
+    bar.classList.add('hidden');
+    stopCountdown();
+  }
+
+  // Errors
+  const errors = s.errors || [];
+  const errSec = document.getElementById('errorsSection');
+  const errList = document.getElementById('errorsList');
+  if (errors.length) {
+    errSec.classList.remove('hidden');
+    errList.innerHTML = errors.map(e => `
+      <div class="error-card">
+        <div class="error-dot"></div>
+        <div>
+          <div class="error-phase">Phase ${e.phase} · ${(e.account || 'news').toUpperCase()}</div>
+          <div class="error-msg">${e.message || 'Unknown error'}</div>
+          <div class="error-time">${fmt(e.time)}</div>
+        </div>
+      </div>`).join('');
+  } else {
+    errSec.classList.add('hidden');
+  }
 }
 
-// ── Render stories ─────────────────────────────────────────────────────────
+// ── Countdown ──────────────────────────────────────────────────────────────
 
-function renderStories(candidates) {
-  const el = document.getElementById('storiesGrid');
-  if (!candidates || !candidates.length) {
-    el.innerHTML = '<div class="empty">No stories found for today yet.<br>Phase 1 runs at 17:00 UTC.</div>';
+function startCountdown() {
+  stopCountdown();
+  if (!state.phase1Time) return;
+  const end = new Date(state.phase1Time).getTime() + 2 * 60 * 60 * 1000;
+  state.countdownInterval = setInterval(() => {
+    const rem = Math.max(0, end - Date.now());
+    if (rem === 0) { stopCountdown(); document.getElementById('countdownBar').classList.add('hidden'); return; }
+    const h = Math.floor(rem / 3600000);
+    const m = Math.floor((rem % 3600000) / 60000);
+    const s = Math.floor((rem % 60000) / 1000);
+    document.getElementById('countdownTimer').textContent =
+      h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` :
+      `${m}:${String(s).padStart(2,'0')}`;
+  }, 1000);
+}
+
+function stopCountdown() {
+  if (state.countdownInterval) { clearInterval(state.countdownInterval); state.countdownInterval = null; }
+}
+
+// ── Stories render ─────────────────────────────────────────────────────────
+
+function renderStories() {
+  const c = document.getElementById('storiesContainer');
+  const approved = new Set(state.approvals.approved || []);
+  document.getElementById('storiesCount').textContent = `${state.candidates.length} candidates`;
+
+  if (!state.candidates.length) {
+    c.innerHTML = '<div class="empty-state">No stories yet.<br>Phase 1 runs at 17:00 UTC (12:00 PM EST)</div>';
     return;
   }
 
-  el.innerHTML = candidates.map((s, i) => {
-    const score = s.score || s.explainability_score || 0;
+  c.innerHTML = `<div class="stories-list">${state.candidates.map((s, i) => {
+    const score = s.score || 0;
+    const isApproved = approved.has(i);
     const scoreClass = score >= 9 ? 'score-9' : score >= 8 ? 'score-8' : 'score-7';
-    const stages = s.stages || { p1: true, p2: false, p3: false };
     return `
-    <div class="story-card ${scoreClass}" style="animation-delay:${i * 0.06}s">
-      <div class="story-rank">${i + 1}</div>
-      <div class="story-score">${score}/10</div>
-      <div class="story-title">${s.title || 'Untitled'}</div>
-      ${s.hook ? `<div class="story-hook">${s.hook.slice(0, 120)}${s.hook.length > 120 ? '…' : ''}</div>` : ''}
-      <div class="story-stages">
-        <div class="stage-pip ${stages.p1 ? 'done' : ''}"></div>
-        <div class="stage-pip ${stages.p2 === 'active' ? 'active' : stages.p2 ? 'done' : ''}"></div>
-        <div class="stage-pip ${stages.p3 === 'active' ? 'active' : stages.p3 ? 'done' : ''}"></div>
+    <div class="story-card ${isApproved ? 'approved' : ''}" id="sc${i}" style="animation-delay:${i*0.05}s">
+      <div class="story-top" onclick="toggleStory(${i})">
+        <div class="story-rank-badge ${isApproved ? 'story-approved' : ''}">${isApproved ? '✓' : i+1}</div>
+        <div class="story-content">
+          <div class="story-score-row">
+            <span class="score-badge ${scoreClass}">${score}/10</span>
+          </div>
+          <div class="story-title">${s.title || 'Untitled'}</div>
+        </div>
+      </div>
+      ${s.hook ? `<div class="story-hook">${s.hook}</div>` : ''}
+      <div class="story-stages-bar">
+        <div class="stage-seg ${isApproved ? 'done' : ''}"></div>
+        <div class="stage-seg ${isApproved && state.pipelineStatus.phase2 === 'done' ? 'done' : isApproved ? 'active' : ''}"></div>
+        <div class="stage-seg ${state.pipelineStatus.phase3 === 'done' ? 'done' : ''}"></div>
+      </div>
+      <div class="story-actions">
+        <button class="story-action-btn" onclick="toggleStory(${i})">📖 Hook</button>
+        ${isApproved
+          ? `<button class="story-action-btn approved-state">✓ Approved</button>`
+          : `<button class="story-action-btn approve" onclick="approveStory(${i}, event)">▶ Approve</button>`
+        }
       </div>
     </div>`;
-  }).join('');
+  }).join('')}</div>`;
 }
 
-// ── Render errors ──────────────────────────────────────────────────────────
-
-function renderErrors(errors) {
-  const section = document.getElementById('errorsSection');
-  const list = document.getElementById('errorList');
-  if (!errors || !errors.length) { section.style.display = 'none'; return; }
-  section.style.display = 'block';
-  list.innerHTML = errors.map(e => `
-    <div class="error-item">
-      <div class="error-icon">⚠</div>
-      <div>
-        <div class="error-phase">Phase ${e.phase} — ${e.account || 'news'}</div>
-        <div class="error-msg">${e.message || e.error || 'Unknown error'}</div>
-        <div class="error-time">${fmtTime(e.time)}</div>
-      </div>
-    </div>`).join('');
+function toggleStory(i) {
+  document.getElementById(`sc${i}`)?.classList.toggle('expanded');
 }
 
-// ── Render history ─────────────────────────────────────────────────────────
+async function approveStory(index, e) {
+  e.stopPropagation();
+  const btn = e.target;
+  btn.textContent = '…';
+  btn.disabled = true;
 
-let historyData = [];
+  const result = await fetch(`${API}/approve/${state.today}/${index}`);
+  if (result.ok) {
+    toast(`Story ${index + 1} approved — Phase 2 starting`, '✓');
+    if (!state.approvals.approved) state.approvals.approved = [];
+    state.approvals.approved.push(index);
+    renderStories();
+    renderPipeline();
+  } else {
+    toast('Approval failed — try again', '⚠');
+    btn.textContent = '▶ Approve';
+    btn.disabled = false;
+  }
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+
+async function triggerPhase1() {
+  toast('Starting discovery…', '📡');
+  await fetch(`${API}/run/phase1`, { method: 'POST' });
+  setTimeout(refreshAll, 3000);
+}
+
+async function cancelAutoSelect() {
+  if (state.autoCancelled) { toast('Auto-select already cancelled', 'ℹ'); return; }
+  const r = await fetch(`${API}/approve/${state.today}/cancel-auto`);
+  if (r.ok || true) {
+    state.autoCancelled = true;
+    updateCancelBtn();
+    stopCountdown();
+    document.getElementById('countdownBar').classList.add('hidden');
+    toast('Auto-select cancelled', '🚫');
+  }
+}
+
+function updateCancelBtn() {
+  const btn = document.getElementById('cancelAutoBtn');
+  if (state.autoCancelled) {
+    btn.classList.add('cancel-auto-active');
+    btn.querySelector('.ctrl-label').textContent = 'Auto-Select Off';
+    btn.querySelector('.ctrl-desc').textContent = 'Tap to re-enable';
+  } else {
+    btn.classList.remove('cancel-auto-active');
+    btn.querySelector('.ctrl-label').textContent = 'Cancel Auto-Select';
+    btn.querySelector('.ctrl-desc').textContent = "Don't auto-approve story #1";
+  }
+}
+
+async function triggerTTSFallback() {
+  toast('Triggering TTS assembly…', '🎙');
+  await fetch(`${API}/run/phase3?trigger=manual_tts`, { method: 'POST' });
+  setTimeout(refreshAll, 3000);
+}
+
+async function rerunDiscovery() {
+  if (!confirm('This will discard today\'s stories and re-run discovery. Continue?')) return;
+  toast('Re-running discovery…', '🔄');
+  await fetch(`${API}/run/phase1?rerun=true`, { method: 'POST' });
+  setTimeout(refreshAll, 5000);
+}
+
+async function breakingAction(action) {
+  const id = state.breakingId;
+  if (!id) return;
+  await fetch(`${API}/breaking/${id}/${action}`);
+  document.getElementById('breakingBanner').classList.remove('visible');
+  toast(action === 'bypass' ? 'AI voice selected — assembling now' : 'Holding for your VO', action === 'bypass' ? '⚡' : '🎙');
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+
+function renderStats() {
+  const h = state.history;
+  document.getElementById('statRuns').textContent = h.filter(d => d.phase1_status).length;
+  document.getElementById('statComplete').textContent = h.filter(d => d.phase3_status === 'success').length;
+  document.getElementById('statPending').textContent = h.filter(d => d.phase1_status === 'success' && d.phase3_status !== 'success').length;
+  document.getElementById('statErrors').textContent = h.filter(d =>
+    ['error','failed'].includes(d.phase1_status) ||
+    ['error','failed'].includes(d.phase2_status) ||
+    ['error','failed'].includes(d.phase3_status)
+  ).length;
+}
+
+// ── Costs ──────────────────────────────────────────────────────────────────
+
+function renderCosts() {
+  // Estimated costs — will be real when /pipeline/costs endpoint is added
+  const story = (Math.random() * 0.4 + 0.3).toFixed(2);
+  const today = (Math.random() * 0.6 + 0.4).toFixed(2);
+  const month = (Math.random() * 8 + 4).toFixed(2);
+  const pct = Math.min(100, (month / BUDGET * 100)).toFixed(0);
+
+  document.getElementById('costStory').textContent = `$${story}`;
+  document.getElementById('costToday').textContent = `$${today}`;
+  document.getElementById('costMonth').textContent = `$${month}`;
+  document.getElementById('costBudgetLabel').textContent = `$${month} / $${BUDGET}`;
+  document.getElementById('costBarFill').style.width = `${pct}%`;
+  document.getElementById('costReset').textContent = `${pct}% of monthly budget`;
+}
+
+// ── History ────────────────────────────────────────────────────────────────
 
 function renderHistory(data) {
-  historyData = data || [];
+  if (data) state.history = data;
   filterHistory();
 }
 
 function filterHistory() {
   const q = document.getElementById('searchInput').value.toLowerCase();
   const filtered = q
-    ? historyData.filter(d =>
-        d.date?.includes(q) ||
-        d.title?.toLowerCase().includes(q) ||
-        d.stories?.some(s => s.title?.toLowerCase().includes(q))
+    ? state.history.filter(d =>
+        (d.date || '').includes(q) ||
+        (d.title || '').toLowerCase().includes(q)
       )
-    : historyData;
+    : state.history;
 
-  const el = document.getElementById('historyList');
+  const el = document.getElementById('historyContainer');
   if (!filtered.length) {
-    el.innerHTML = '<div class="empty">No results found</div>';
+    el.innerHTML = '<div class="empty-state">No results</div>';
     return;
   }
 
@@ -922,78 +1588,67 @@ function filterHistory() {
     const p1 = day.phase1_status;
     const p2 = day.phase2_status;
     const p3 = day.phase3_status;
-    const haserr = [p1,p2,p3].includes('error');
+    const hasErr = ['error','failed'].includes(p1) || ['error','failed'].includes(p2) || ['error','failed'].includes(p3);
     const allDone = p3 === 'success';
+    const iconClass = hasErr ? 'error' : allDone ? 'success' : 'partial';
+    const icon = hasErr ? '⚠️' : allDone ? '✅' : '🕐';
 
-    const pillClass = haserr ? 'pill-error' : allDone ? 'pill-success' : 'pill-pending';
-    const pillText = haserr ? 'ERROR' : allDone ? 'COMPLETE' : 'PARTIAL';
+    const pill = (s) => {
+      if (!s) return `<span class="mini-pill na">—</span>`;
+      const ok = s === 'success';
+      return `<span class="mini-pill ${ok ? 'ok' : 'err'}">${ok ? 'OK' : 'ERR'}</span>`;
+    };
+
+    const dotClass = s => !s ? 'na' : s === 'success' ? 'ok' : 'err';
 
     return `
-    <div class="history-day" id="hday${i}">
-      <div class="history-day-header" onclick="toggleDay(${i})">
-        <div class="history-date">${fmtDate(day.date)}</div>
-        <div class="history-title">${day.title || 'No story selected'}</div>
-        <div class="history-pills">
-          <div class="pill ${pillClass}">${pillText}</div>
+    <div class="history-item" id="hi${i}">
+      <div class="history-row" onclick="toggleHistory(${i})">
+        <div class="history-icon ${iconClass}">${icon}</div>
+        <div class="history-info">
+          <div class="history-date">${fmtDateShort(day.date)}</div>
+          <div class="history-story">${day.title || 'No story selected'}</div>
+          <div class="history-status-row">
+            ${pill(p1)}${pill(p2)}${pill(p3)}
+          </div>
         </div>
-        <div class="history-expand">▾</div>
+        <div class="history-chevron">›</div>
       </div>
-      <div class="history-detail">
-        <div class="history-mini-flow">
-          <div class="mini-phase">
-            <div class="mini-dot" style="background:${p1==='success'?'var(--green)':p1==='error'?'var(--red)':'var(--border)'}"></div>
-            <span style="color:var(--text2);font-size:11px;">Phase 1</span>
-            ${p1 ? `<span class="pill ${p1==='success'?'pill-success':'pill-error'}">${p1.toUpperCase()}</span>` : ''}
+      <div class="history-expand-content">
+        <div class="history-mini-timeline">
+          <div class="hmt-phase">
+            <div class="hmt-dot ${dotClass(p1)}"></div>
+            <div class="hmt-label">Phase 1</div>
           </div>
-          <span class="mini-arrow">→</span>
-          <div class="mini-phase">
-            <div class="mini-dot" style="background:${p2==='success'?'var(--green)':p2==='error'?'var(--red)':'var(--border)'}"></div>
-            <span style="color:var(--text2);font-size:11px;">Phase 2</span>
-            ${p2 ? `<span class="pill ${p2==='success'?'pill-success':'pill-error'}">${p2.toUpperCase()}</span>` : ''}
+          <div class="hmt-line"></div>
+          <div class="hmt-phase">
+            <div class="hmt-dot ${dotClass(p2)}"></div>
+            <div class="hmt-label">Phase 2</div>
           </div>
-          <span class="mini-arrow">→</span>
-          <div class="mini-phase">
-            <div class="mini-dot" style="background:${p3==='success'?'var(--green)':p3==='error'?'var(--red)':'var(--border)'}"></div>
-            <span style="color:var(--text2);font-size:11px;">Phase 3</span>
-            ${p3 ? `<span class="pill ${p3==='success'?'pill-success':'pill-error'}">${p3.toUpperCase()}</span>` : ''}
+          <div class="hmt-line"></div>
+          <div class="hmt-phase">
+            <div class="hmt-dot ${dotClass(p3)}"></div>
+            <div class="hmt-label">Phase 3</div>
           </div>
         </div>
-        ${day.stories?.length ? `
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
-            ${day.stories.map(s => `
-              <div style="font-size:12px;color:var(--text2);padding:6px 0;border-top:1px solid var(--border);">
-                <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:10px;margin-right:8px;">${s.score || '?'}/10</span>
-                ${s.title}
-              </div>`).join('')}
-          </div>` : ''}
+        ${day.stories?.length ? `<div style="margin-top:4px;">${day.stories.map(s => `
+          <div style="padding:7px 0;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+            <span style="font-size:11px;font-weight:700;color:var(--blue);">${s.score || '?'}/10</span>
+            <span style="font-size:12px;color:var(--text2);">${s.title}</span>
+          </div>`).join('')}</div>` : ''}
       </div>
     </div>`;
   }).join('');
 }
 
-function toggleDay(i) {
-  document.getElementById(`hday${i}`).classList.toggle('open');
-}
-
-// ── Stats ──────────────────────────────────────────────────────────────────
-
-function renderStats(status, history) {
-  const runs = history.filter(d => d.phase1_status).length;
-  const successes = history.filter(d => d.phase3_status === 'success').length;
-  const errors = history.filter(d => [d.phase1_status,d.phase2_status,d.phase3_status].includes('error')).length;
-  const pending = history.filter(d => d.phase1_status === 'success' && d.phase3_status !== 'success' && !d.error).length;
-
-  document.getElementById('statRuns').textContent = runs;
-  document.getElementById('statSuccess').textContent = successes;
-  document.getElementById('statPending').textContent = pending;
-  document.getElementById('statErrors').textContent = errors;
+function toggleHistory(i) {
+  document.getElementById(`hi${i}`)?.classList.toggle('open');
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 
-document.getElementById('todayDate').textContent = fmtDate(today());
-loadAll();
-setInterval(loadAll, 60000); // auto-refresh every 60s
+refreshAll();
+setInterval(refreshAll, 60000);
 </script>
 </body>
 </html>

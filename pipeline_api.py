@@ -10,7 +10,7 @@
 import json
 import datetime
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -188,6 +188,34 @@ def approval_status_detail(date):
         "auto_cancelled_at": day.get("auto_cancelled_at", None),
         "timestamp":         day.get("timestamp", None),
     })
+
+
+@app.route("/run/phase1", methods=["POST"])
+def run_phase1_route():
+    import threading, datetime
+    from main import run_phase1
+    account = request.args.get("account", "news")
+    rerun   = request.args.get("rerun", "false").lower() == "true"
+    if rerun:
+        today = datetime.date.today().isoformat()
+        approvals = load_approvals()
+        approvals.pop(today, None)
+        save_approvals(approvals)
+    t = threading.Thread(target=run_phase1, args=(account,), daemon=True)
+    t.start()
+    return jsonify({"status": "started", "phase": "1", "account": account, "rerun": rerun}), 202
+
+
+@app.route("/run/phase3", methods=["POST"])
+def run_phase3_route():
+    import threading
+    from main import run_phase3
+    account = request.args.get("account", "news")
+    trigger = request.args.get("trigger", "manual_tts")
+    slug    = request.args.get("slug", None)
+    t = threading.Thread(target=run_phase3, args=(account, trigger, slug), daemon=True)
+    t.start()
+    return jsonify({"status": "started", "phase": "3", "account": account, "trigger": trigger}), 202
 
 
 if __name__ == "__main__":
