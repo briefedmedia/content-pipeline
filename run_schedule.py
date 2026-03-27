@@ -78,6 +78,42 @@ def check_pending_jobs():
                     print("[JobQueue] No breaking stories found")
                 j["status"] = "complete"
 
+            elif jtype == "breaking-visuals":
+                from images import run_image_generation
+                from clips  import run_clip_generation
+                from sheets import update_breaking_job
+                from config import get_style
+                job_id  = j.get("job_id")
+                account = j.get("account_type", "news")
+                print(f"[JobQueue] Generating breaking visuals for {job_id}")
+                # Load the script from the breaking job sheets record
+                from sheets import _get_sheet
+                import json as _json
+                sheet = _get_sheet()
+                rows = sheet.get_all_values()
+                script_data = None
+                for row in reversed(rows):
+                    if len(row) >= 5 and f"breaking_{job_id}" == row[3]:
+                        data = _json.loads(row[4])
+                        script_data = data.get("script")
+                        break
+                if script_data:
+                    imgs  = run_image_generation(script_data, get_style(account))
+                    clips = run_clip_generation(imgs, account)
+                    update_breaking_job(job_id, {"clips": clips, "phase2": "done"})
+                    # Update active file
+                    from breaking import _load_active, _save_active
+                    active = _load_active()
+                    for aj in active:
+                        if aj.get("job_id") == job_id:
+                            aj["visuals_status"] = "done"
+                            break
+                    _save_active(active)
+                    print(f"[JobQueue] Breaking visuals complete for {job_id}")
+                else:
+                    print(f"[JobQueue] Could not find script for breaking job {job_id}")
+                j["status"] = "complete"
+
             else:
                 print(f"[JobQueue] Unknown job type: {jtype}")
                 j["status"] = "error"

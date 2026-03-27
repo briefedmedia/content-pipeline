@@ -516,6 +516,25 @@ def run_breaking_scan_route():
     return jsonify({"status": "started", "phase": "breaking-scan", "account": account}), 202
 
 
+@app.route("/breaking/active")
+def breaking_active():
+    """Return active breaking jobs for the stories dashboard."""
+    from breaking import get_active_breaking
+    return jsonify(get_active_breaking())
+
+
+@app.route("/breaking/<job_id>/decide", methods=["POST"])
+def breaking_decide(job_id):
+    """Handle bypass/hold decision from the stories dashboard."""
+    from breaking import resolve_breaking
+    decision = request.args.get("decision", "hold")
+    if decision not in ("tts", "hold"):
+        return jsonify({"error": "decision must be 'tts' or 'hold'"}), 400
+    resolve_breaking(job_id, decision)
+    label = "AI voice — assembling now" if decision == "tts" else "Holding for your VO"
+    return jsonify({"status": "ok", "decision": decision, "message": label})
+
+
 @app.route("/drive/links")
 def drive_links():
     """Return today's Drive folder URLs for the dashboard quick links."""
