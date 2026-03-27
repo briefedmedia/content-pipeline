@@ -60,7 +60,7 @@ def run_phase2_for_story(date, story_index, account_type="news"):
     from images   import run_image_generation
     from clips    import run_clip_generation
     from assemble import assemble_silent_preview
-    from drive    import upload_file, get_or_create_story_folder
+    from drive    import upload_file, get_or_create_story_folder, get_or_create_pending_story_folder
     from notify   import notify_preview_ready
     from config   import TMP, MIN_EXPLAINABILITY_SCORE
 
@@ -112,11 +112,40 @@ def run_phase2_for_story(date, story_index, account_type="news"):
     image_paths = run_image_generation(script_data, style)
     clip_paths  = run_clip_generation(image_paths, account_type)
 
-    preview_path     = assemble_silent_preview(clip_paths, script_data["title"], slug)
-    previews_fid     = get_or_create_story_folder(slug, "previews")
+    preview_path = assemble_silent_preview(clip_paths, script_data["title"], slug)
+    previews_fid = get_or_create_story_folder(slug, "previews")
     upload_file(preview_path, "previews", folder_id=previews_fid)
 
-    notify_preview_ready(script_data["title"], account_type)
+    # Create VO drop zone in pending/
+    pending_folder_id = get_or_create_pending_story_folder(slug)
+    script_data["pending_folder_id"] = pending_folder_id
+
+    slug_dir    = os.path.join(TMP, slug)
+    drop_txt    = os.path.join(slug_dir, "DROP_VO_HERE.txt")
+    vo_filename = f"voiceover_{slug}_{account_type}.mp3"
+    with open(drop_txt, "w", encoding="utf-8") as f:
+        f.write(
+            f"{'='*54}\n"
+            f"DROP YOUR VOICEOVER RECORDING INTO THIS FOLDER\n"
+            f"{'='*54}\n\n"
+            f"Story:    {script_data['title']}\n"
+            f"Date:     {date}\n"
+            f"Slug:     {slug}\n"
+            f"Account:  {account_type}\n\n"
+            f"Name your file exactly:\n"
+            f"  {vo_filename}\n\n"
+            f"The file watcher checks this folder every 60 seconds.\n"
+            f"When it detects your recording, Phase 3 starts automatically.\n\n"
+            f"Script preview:\n"
+            f"{'─'*46}\n"
+            f"{script_data['script'][:300]}...\n"
+            f"{'─'*46}\n"
+        )
+    upload_file(drop_txt, "pending", folder_id=pending_folder_id)
+    print(f"  VO drop zone created: Drive/pending/{slug}/")
+
+    notify_preview_ready(script_data["title"], account_type,
+                         preview_drive_path=f"Drive/previews/{slug}/")
 
     log_job(account_type, "2", status="success")
 
