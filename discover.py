@@ -560,6 +560,101 @@ def run_discovery():
     return enriched
 
 
+# ── Breaking news scan ─────────────────────────────────────────────────────────
+
+BREAKING_SCAN_PROMPT = """You are a breaking news editor. Review these headlines and identify ANY that qualify as BREAKING NEWS.
+
+Criteria for breaking:
+- Event happened in the last 6 hours
+- Genuinely significant (not routine politics, scheduled events, or celebrity news)
+- Publishing within 12 hours gives a meaningful first-mover advantage
+- Fits a news channel focused on context + historical background
+
+Be conservative. Most headline batches will have ZERO breaking stories.
+
+Return JSON only, no markdown fences:
+{"breaking_stories": [{"title": "...", "urgency": 1-10, "reason": "...", "source_index": N}]}
+
+If nothing qualifies, return: {"breaking_stories": []}"""
+
+
+def scan_for_breaking(account_type="news"):
+    """Lightweight headline scan that checks for breaking news without full enrichment.
+
+    Fetches headlines from all RSS sources, sends them to Claude for urgency
+    evaluation, and writes qualifying stories (urgency >= 7) to
+    temp/breaking_candidates.json for the breaking pipeline to pick up.
+
+    Returns list of breaking candidates found (may be empty).
+    """
+    print("Breaking scan: Fetching headlines...")
+    headlines = fetch_all_headlines()
+
+    if not headlines:
+        print("Breaking scan: No headlines fetched.")
+        return []
+
+    # Build a compact list for Claude to evaluate
+    compact = [{"i": i, "title": h["title"], "summary": h["summary"],
+                "source": h["source"], "published": h["published"]}
+               for i, h in enumerate(headlines)]
+
+    print(f"Breaking scan: Evaluating {len(compact)} headlines with Claude...")
+    msg = client.messages.create(
+        model      = CLAUDE_MODEL,
+        max_tokens = 1000,
+        system     = BREAKING_SCAN_PROMPT,
+        messages   = [{"role": "user", "content": json.dumps(compact)}],
+    )
+
+    try:
+        result = json.loads(strip_fences(msg.content[0].text))
+    except (json.JSONDecodeError, IndexError):
+        print("Breaking scan: Failed to parse Claude response.")
+        return []
+
+    breaking = result.get("breaking_stories", [])
+
+    # Filter to urgency >= 7
+    qualified = [b for b in breaking if b.get("urgency", 0) >= 7]
+
+    if not qualified:
+        print("Breaking scan: No breaking stories found.")
+        return []
+
+    # Build candidate objects from the original headlines
+    candidates = []
+    for b in qualified:
+        idx = b.get("source_index")
+        if idx is not None and idx < len(headlines):
+            h = headlines[idx]
+            candidates.append({
+                "story": {
+                    "title":     h["title"],
+                    "summary":   h["summary"],
+                    "source":    h["source"],
+                    "url":       h["url"],
+                    "published": h["published"],
+                },
+                "urgency":      b["urgency"],
+                "reason":       b.get("reason", ""),
+                "account_type": account_type,
+            })
+
+    # Write to breaking_candidates.json
+    os.makedirs("temp", exist_ok=True)
+    filepath = os.path.join("temp", "breaking_candidates.json")
+    with open(filepath, "w") as f:
+        json.dump(candidates, f, indent=2)
+
+    print(f"Breaking scan: {len(candidates)} breaking stories found and queued.")
+    for c in candidates:
+        print(f"  [{c['urgency']}/10] {c['story']['title']}")
+        print(f"    Reason: {c['reason']}")
+
+    return candidates
+
+
 # ── Test block ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

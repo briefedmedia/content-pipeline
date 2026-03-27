@@ -1331,25 +1331,25 @@ body {
   </div>
 
   <div class="controls-grid">
-    <div class="ctrl-btn primary" onclick="triggerPhase1()">
+    <div class="ctrl-btn primary" onclick="smartDiscovery()">
       <span class="ctrl-icon">📡</span>
-      <div class="ctrl-label">Run Discovery</div>
-      <div class="ctrl-desc">Fetch fresh stories now</div>
+      <div class="ctrl-label" id="discoveryLabel">Run Discovery</div>
+      <div class="ctrl-desc" id="discoveryDesc">Fetch fresh stories now</div>
     </div>
     <div class="ctrl-btn warning" id="cancelAutoBtn" onclick="cancelAutoSelect()">
       <span class="ctrl-icon">🚫</span>
       <div class="ctrl-label">Cancel Auto-Select</div>
       <div class="ctrl-desc">Don't auto-approve story #1</div>
     </div>
-    <div class="ctrl-btn success" onclick="triggerTTSFallback()">
-      <span class="ctrl-icon">🎙</span>
-      <div class="ctrl-label">Force TTS Fallback</div>
-      <div class="ctrl-desc">Assemble with AI voice now</div>
+    <div class="ctrl-btn success" onclick="assembleVideo()">
+      <span class="ctrl-icon">🎬</span>
+      <div class="ctrl-label">Assemble Video</div>
+      <div class="ctrl-desc">Build final video from assets</div>
     </div>
-    <div class="ctrl-btn danger" onclick="rerunDiscovery()">
-      <span class="ctrl-icon">🔄</span>
-      <div class="ctrl-label">Re-run Discovery</div>
-      <div class="ctrl-desc">Discard today's stories</div>
+    <div class="ctrl-btn danger" onclick="scanBreaking()">
+      <span class="ctrl-icon">🔴</span>
+      <div class="ctrl-label">Scan for Breaking</div>
+      <div class="ctrl-desc">Check headlines for urgency</div>
     </div>
   </div>
 
@@ -1494,7 +1494,7 @@ async function refreshAll() {
       apiFetch('/status'),
     ]);
 
-    if (candidates) { state.candidates = candidates; renderStories(); }
+    if (candidates) { state.candidates = candidates; renderStories(); updateDiscoveryBtn(); }
     if (approvalStatus) {
       state.approvals = approvalStatus;
       state.autoCancelled = approvalStatus.auto_cancelled || false;
@@ -1794,19 +1794,31 @@ async function apiCall(method, path, confirmMsg) {
 
 // ── Controls ───────────────────────────────────────────────────────────────
 
-async function triggerPhase1() {
-  const res = await apiCall('POST', '/run/phase1');
-  if (!res) return;
-  if (res.ok) {
-    toast('Discovery starting — check back in ~10 minutes', '📡');
-    setTimeout(refreshAll, 3000);
+async function smartDiscovery() {
+  // If candidates already exist, confirm re-run (clears approvals)
+  if (state.candidates?.length > 0) {
+    const res = await apiCall('POST', '/run/phase1?rerun=true',
+      `${state.candidates.length} stories already found. Discard and fetch new ones?`);
+    if (!res) return;
+    if (res.ok) {
+      toast('Re-running discovery — new stories in ~10 minutes', '🔄');
+      setTimeout(refreshAll, 5000);
+    } else {
+      toast('Failed to restart discovery', '⚠');
+    }
   } else {
-    toast('Failed to start discovery — try again', '⚠');
+    const res = await apiCall('POST', '/run/phase1');
+    if (!res) return;
+    if (res.ok) {
+      toast('Discovery starting — check back in ~10 minutes', '📡');
+      setTimeout(refreshAll, 3000);
+    } else {
+      toast('Failed to start discovery', '⚠');
+    }
   }
 }
 
 async function cancelAutoSelect() {
-  // Window already expired — nothing to toggle
   if (isWindowExpired(state.phase1Timestamp)) {
     toast('Auto-select window already closed', 'ℹ');
     return;
@@ -1815,7 +1827,6 @@ async function cancelAutoSelect() {
   if (!res) return;
 
   if (res.status === 400 && res.data?.error === 'window_expired') {
-    // Server says window closed — hide countdown and update button
     state.autoCancelled = true;
     updateCancelBtn();
     stopCountdown();
@@ -1832,7 +1843,7 @@ async function cancelAutoSelect() {
       document.getElementById('countdownBar').classList.add('hidden');
       toast('Auto-select cancelled', '🚫');
     } else {
-      renderPipeline(); // restarts countdown via renderPipeline
+      renderPipeline();
       toast('Auto-select re-enabled', '⏱');
     }
   } else {
@@ -1859,27 +1870,57 @@ function updateCancelBtn() {
   }
 }
 
-async function triggerTTSFallback() {
-  const res = await apiCall('POST', '/run/phase3?trigger=manual_tts',
-    'Assemble this story using AI voice now?');
-  if (!res) return;
-  if (res.ok) {
-    toast('TTS assembly starting — ~15 minutes', '🎙');
-    setTimeout(refreshAll, 3000);
+// Update discovery button label based on whether stories exist
+function updateDiscoveryBtn() {
+  const label = document.getElementById('discoveryLabel');
+  const desc  = document.getElementById('discoveryDesc');
+  if (!label) return;
+  if (state.candidates?.length > 0) {
+    label.textContent = 'Re-run Discovery';
+    desc.textContent  = `${state.candidates.length} stories found — tap to refresh`;
   } else {
-    toast('Failed to start assembly', '⚠');
+    label.textContent = 'Run Discovery';
+    desc.textContent  = 'Fetch fresh stories now';
   }
 }
 
-async function rerunDiscovery() {
-  const res = await apiCall('POST', '/run/phase1?rerun=true',
-    "Discard today's stories and fetch new ones?");
+async function assembleVideo() {
+  const choice = confirm(
+    'Assemble with your VO recording?\n\n' +
+    'OK = Use my VO from Drive/pending\n' +
+    'Cancel = Use AI voice (TTS)');
+  if (choice) {
+    // Use human VO
+    const res = await apiCall('POST', '/approve/force-assemble');
+    if (!res) return;
+    if (res.ok || res.status === 202) {
+      toast('Assembling with your VO — ~15 minutes', '🎬');
+      setTimeout(refreshAll, 3000);
+    } else {
+      toast('Failed to start assembly', '⚠');
+    }
+  } else {
+    // Use TTS
+    const res = await apiCall('POST', '/run/phase3?trigger=manual_tts');
+    if (!res) return;
+    if (res.ok) {
+      toast('TTS assembly starting — ~15 minutes', '🎙');
+      setTimeout(refreshAll, 3000);
+    } else {
+      toast('Failed to start assembly', '⚠');
+    }
+  }
+}
+
+async function scanBreaking() {
+  const res = await apiCall('POST', '/run/breaking-scan',
+    'Scan all headlines for breaking news? Uses ~1 Claude API call.');
   if (!res) return;
   if (res.ok) {
-    toast('Re-running discovery — new stories in ~10 minutes', '🔄');
+    toast('Scanning headlines for breaking news…', '🔴');
     setTimeout(refreshAll, 5000);
   } else {
-    toast('Failed to restart discovery', '⚠');
+    toast('Failed to start breaking scan', '⚠');
   }
 }
 

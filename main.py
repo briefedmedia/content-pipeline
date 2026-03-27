@@ -219,7 +219,7 @@ def run_phase3(account_type="history", trigger="cron", slug=None, force_assemble
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["1", "2", "3", "breaking", "recap"])
+    parser.add_argument("phase", choices=["1", "2", "3", "breaking", "breaking-scan", "recap"])
     parser.add_argument("account", nargs="?", default="history")
     parser.add_argument("--trigger", default="cron")
     parser.add_argument("--slug",    default=None)
@@ -228,5 +228,15 @@ if __name__ == "__main__":
     if   args.phase == "1":        run_phase1(args.account)
     elif args.phase == "2":        run_phase2(args.account)
     elif args.phase == "3":        run_phase3(args.account, args.trigger, args.slug)
-    elif args.phase == "breaking": from breaking import run_breaking; run_breaking()
-    elif args.phase == "recap":    from recap import run_weekly_recap; run_weekly_recap()
+    elif args.phase == "breaking":
+        from breaking import run_breaking
+        run_breaking()
+    elif args.phase == "breaking-scan":
+        from discover import scan_for_breaking
+        found = scan_for_breaking(args.account)
+        if found:
+            from breaking import run_breaking
+            run_breaking()
+    elif args.phase == "recap":
+        from recap import run_weekly_recap
+        run_weekly_recap()

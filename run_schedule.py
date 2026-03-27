@@ -65,6 +65,19 @@ def check_pending_jobs():
                 run_phase3(account, trigger, slug, force)
                 j["status"] = "complete"
 
+            elif jtype == "breaking-scan":
+                from discover import scan_for_breaking
+                from breaking import run_breaking
+                account = j.get("account_type", "news")
+                print(f"[JobQueue] Running breaking news scan for {account}")
+                found = scan_for_breaking(account)
+                if found:
+                    print(f"[JobQueue] {len(found)} breaking stories found — processing")
+                    run_breaking()
+                else:
+                    print("[JobQueue] No breaking stories found")
+                j["status"] = "complete"
+
             else:
                 print(f"[JobQueue] Unknown job type: {jtype}")
                 j["status"] = "error"

@@ -508,6 +508,14 @@ def run_phase3_route():
     return jsonify({"status": "started", "phase": "3", "account": account, "trigger": trigger}), 202
 
 
+@app.route("/run/breaking-scan", methods=["POST"])
+def run_breaking_scan_route():
+    account = request.args.get("account", "news")
+    _enqueue_job("breaking-scan",
+                 account_type=account)
+    return jsonify({"status": "started", "phase": "breaking-scan", "account": account}), 202
+
+
 @app.route("/drive/links")
 def drive_links():
     """Return today's Drive folder URLs for the dashboard quick links."""
