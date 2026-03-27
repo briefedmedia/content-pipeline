@@ -509,6 +509,41 @@ def run_discovery():
     stories_folder_id = get_or_create_story_folder(today, "stories")
     file_id = upload_file(local_path, "stories", filename, folder_id=stories_folder_id)
 
+    # Generate and upload human-readable brief alongside the JSON
+    server_url      = os.getenv("SERVER_URL", "https://your-app.railway.app")
+    brief_filename  = f"candidates_{today}_brief.txt"
+    brief_path      = os.path.join(date_dir, brief_filename)
+    sep_thick = "=" * 49
+    sep_thin  = "-" * 49
+    with open(brief_path, "w", encoding="utf-8") as bf:
+        bf.write(f"{sep_thick}\n")
+        bf.write(f"BRIEFED — STORY CANDIDATES\n")
+        bf.write(f"{today} | {len(enriched)} stories | news\n")
+        bf.write(f"{sep_thick}\n\n")
+        for s in enriched:
+            ctx          = s.get("historical_context") or {}
+            score        = ctx.get("explainability_score", 0)
+            significance = ctx.get("significance", s.get("significance", ""))
+            hook         = ctx.get("suggested_hook", "")
+            sources      = ctx.get("wikipedia_articles_used", [])
+            rank         = s.get("rank", "?")
+            bf.write(f"{sep_thin}\n")
+            bf.write(f"#{rank}  [{score}/10]  {s['title']}\n")
+            bf.write(f"{sep_thin}\n")
+            if significance:
+                bf.write(f"WHY THIS STORY MATTERS\n{significance}\n\n")
+            if hook:
+                bf.write(f"HOOK\n{hook}\n\n")
+            if sources:
+                src_str = ", ".join(sources) if isinstance(sources, list) else str(sources)
+                bf.write(f"HISTORICAL CONTEXT SOURCES\n{src_str}\n\n")
+            bf.write(f"ESTIMATED COST\nScript + visuals: ~$0.45-0.65\n")
+            bf.write(f"{sep_thin}\n\n")
+        bf.write(f"Generated {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+        bf.write(f"Approve stories at: {server_url}/stories\n")
+    upload_file(brief_path, "stories", brief_filename, folder_id=stories_folder_id)
+    print(f"  Brief uploaded: Drive/stories/{today}/{brief_filename}")
+
     # Print summary
     print(f"\n{'─' * 65}")
     print(f"Discovery complete -- {len(enriched)} stories | Drive ID: {file_id}")
