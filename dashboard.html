@@ -1038,6 +1038,10 @@ body {
     </div>
     <div class="header-right">
       <div class="live-pill"><div class="live-dot"></div>Live</div>
+      <a href="/costs" style="font-size:12px;font-weight:500;color:var(--text3);text-decoration:none;
+         padding:6px 10px;border-radius:8px;transition:color 0.15s;"
+         onmouseover="this.style.color='var(--text)'"
+         onmouseout="this.style.color='var(--text3)'">Costs</a>
       <div class="icon-btn" onclick="refreshAll()" id="refreshBtn" title="Refresh">↻</div>
     </div>
   </header>
@@ -1185,9 +1189,20 @@ body {
     <div class="cost-head">
       <div class="cost-title">💸 API Cost Tracker</div>
     </div>
-    <div id="costs-content" style="padding:0 4px;">
-      <p style="color:rgba(255,255,255,0.4);font-size:13px;padding:24px 16px;text-align:center;">Loading...</p>
+    <div id="costs-content" style="padding:0 16px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 16px;width:100%;">
+        <div class="loader-ring"></div>
+        <div style="font-size:13px;color:var(--text3);">Loading cost data…</div>
+      </div>
     </div>
+    <a href="/costs" style="display:flex;align-items:center;justify-content:space-between;
+       padding:12px 16px;border-top:1px solid var(--border);color:var(--blue);
+       font-size:13px;font-weight:500;text-decoration:none;
+       border-radius:0 0 var(--r-xl) var(--r-xl);transition:background 0.15s;"
+       onmouseover="this.style.background='rgba(10,132,255,0.06)'"
+       onmouseout="this.style.background='transparent'">
+      <span>View full cost report</span><span>→</span>
+    </a>
   </div>
 
   <!-- Errors -->

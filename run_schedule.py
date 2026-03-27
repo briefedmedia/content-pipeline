@@ -4,9 +4,17 @@ import schedule, time, os
 def job(phase, account):
     cmd = f"python main.py {phase} {account}".strip()
     print(f"[Scheduler] Running: {cmd}")
-    result = os.system(cmd)
-    if result != 0:
-        print(f"[Scheduler] WARNING: {cmd} exited with code {result} -- not retrying")
+    try:
+        result = os.system(cmd)
+        if result != 0:
+            from notify import notify_error
+            notify_error(phase, account or "news",
+                         f"Exit code {result} — command: {cmd}")
+            print(f"[Scheduler] WARNING: {cmd} exited with code {result}")
+    except Exception as e:
+        from notify import notify_error
+        notify_error(phase, account or "news", str(e))
+        print(f"[Scheduler] ERROR: {e}")
 
 # HOME DAYS (Sun=0, Mon=1, Tue=2) -- UTC times (EST+5)
 schedule.every().sunday.at("17:00").do(job, "1", "news")
