@@ -138,9 +138,9 @@ schedule.every().sunday.at("13:00").do(job, "3", "news --trigger morning_fallbac
 schedule.every().sunday.at("13:00").do(job, "recap", "")
 
 # Poll pending_jobs.json every 60 seconds for API-enqueued work
-schedule.every(60).seconds.do(check_pending_jobs)
+schedule.every(15).seconds.do(check_pending_jobs)
 
-print("Scheduler running. All times UTC. Polling pending_jobs.json every 60s.")
+print("Scheduler running. All times UTC. Polling pending_jobs.json every 15s.")
 while True:
     schedule.run_pending()
-    time.sleep(30)
+    time.sleep(10)
