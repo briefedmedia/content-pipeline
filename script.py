@@ -2,7 +2,7 @@
 import anthropic, json, datetime, os, re
 from dotenv import load_dotenv
 from drive import upload_file, get_or_create_story_folder
-from config import TMP, CLAUDE_MODEL, MIN_EXPLAINABILITY_SCORE
+from config import TMP, CLAUDE_MODEL_FAST, CLAUDE_MODEL_BEST, MIN_EXPLAINABILITY_SCORE
 
 load_dotenv()
 
@@ -535,7 +535,7 @@ def force_trim(script_data):
     wc = len(script_data["script"].split())
     print(f"  Force trimming {wc} words to target 200")
     msg = client.messages.create(
-        model      = CLAUDE_MODEL,
+        model      = CLAUDE_MODEL_FAST,
         max_tokens = 4000,
         system     = (
             "You are an editor. Trim the following script to exactly 200 words. "
@@ -564,7 +564,7 @@ def force_trim(script_data):
 
 def select_story(candidates):
     msg = client.messages.create(
-        model       = CLAUDE_MODEL,
+        model       = CLAUDE_MODEL_FAST,
         max_tokens  = 500,
         system      = SELECTOR_PROMPT,
         messages    = [{"role": "user", "content": json.dumps(candidates)}]
@@ -654,7 +654,7 @@ def _repair_script_json(cleaned, raw, story):
 def write_script(story, account_type="history"):
     prompt = HISTORY_SCRIPT_PROMPT if account_type == "history" else NEWS_SCRIPT_PROMPT
     msg = client.messages.create(
-        model      = CLAUDE_MODEL,
+        model      = CLAUDE_MODEL_BEST,
         max_tokens = 4000,      # increased from 2000: new scene object format is token-heavy
         system     = prompt,
         messages   = [{"role": "user", "content": json.dumps(story)}]
@@ -739,7 +739,7 @@ Return JSON only, no markdown fences:
 {"shorts_script": "...", "shorts_word_count": N, "shorts_estimated_seconds": N}"""
 
     msg = client.messages.create(
-        model      = CLAUDE_MODEL,
+        model      = CLAUDE_MODEL_FAST,
         max_tokens = 1000,
         system     = SHORTS_PROMPT,
         messages   = [{"role": "user", "content": script_data["script"]}]
@@ -767,7 +767,7 @@ def audit_bias(script_data, max_retries=2):
     for i in range(max_retries):
         wc = len(script_data["script"].split())
         msg = client.messages.create(
-            model      = CLAUDE_MODEL,
+            model      = CLAUDE_MODEL_BEST,
             max_tokens = 5000,
             system     = BIAS_AUDIT_PROMPT,
             messages   = [{"role": "user", "content": script_data["script"]}]
@@ -865,7 +865,7 @@ def quality_check(script_data, max_retries=2):
 
     for i in range(max_retries):
         msg = client.messages.create(
-            model      = CLAUDE_MODEL,
+            model      = CLAUDE_MODEL_BEST,
             max_tokens = 4000,
             system     = QUALITY_CHECK_PROMPT,
             messages   = [{"role": "user", "content": script_data["script"]}]
@@ -942,7 +942,7 @@ Reserve urgent for genuine inflection points.
 Return JSON only, no markdown fences:
 {"breaking": true/false, "urgency": 1-10, "reason": "..."}"""
     msg = client.messages.create(
-        model      = CLAUDE_MODEL,
+        model      = CLAUDE_MODEL_FAST,
         max_tokens = 300,
         system     = BREAKING_PROMPT,
         messages   = [{"role": "user", "content": json.dumps(story)}]

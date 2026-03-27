@@ -5,7 +5,8 @@ import tempfile, os, datetime
 # Returns /tmp on Linux (Railway)
 TMP = tempfile.gettempdir()
 
-CLAUDE_MODEL = "claude-sonnet-4-6"
+CLAUDE_MODEL_FAST = "claude-sonnet-4-6"   # discovery, selection, trimming
+CLAUDE_MODEL_BEST = "claude-opus-4-6"     # script writing, bias audit, quality check
 
 # Change this ONE LINE to switch generators globally
 VIDEO_GENERATOR = "pika"   # options: "pika" or "runway"

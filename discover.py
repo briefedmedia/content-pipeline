@@ -20,7 +20,7 @@ import feedparser
 import anthropic
 from dotenv import load_dotenv
 from drive import upload_file, get_or_create_story_folder
-from config import TMP, CLAUDE_MODEL
+from config import TMP, CLAUDE_MODEL_FAST as CLAUDE_MODEL
 
 load_dotenv()
 
