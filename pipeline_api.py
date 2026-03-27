@@ -27,9 +27,16 @@ def dashboard():
     return open("dashboard.html").read(), 200, {"Content-Type": "text/html"}
 
 
+@app.route("/stories")
+def stories_page():
+    import os as _os
+    if _os.path.exists("stories_page.html"):
+        return open("stories_page.html").read(), 200, {"Content-Type": "text/html"}
+    return "<h2>stories_page.html not found</h2>", 404
+
+
 @app.route("/candidates/today")
 def candidates_today():
-    import datetime
     today = datetime.date.today().isoformat()
     path  = os.path.join(TMP, today, f"candidates_{today}.json")
     if not os.path.exists(path):
@@ -39,10 +46,22 @@ def candidates_today():
     candidates = data.get("candidates", [])
     out = []
     for c in candidates:
-        hc    = c.get("historical_context", {})
-        score = hc.get("explainability_score", c.get("score", 0))
-        hook  = hc.get("suggested_hook", "")
-        out.append({"title": c.get("title", ""), "score": score, "hook": hook})
+        hc           = c.get("historical_context", {})
+        score        = hc.get("explainability_score", c.get("score", 0))
+        hook         = hc.get("suggested_hook", "")
+        significance = hc.get("significance", c.get("significance", ""))
+        sources      = hc.get("wikipedia_articles_used", [])
+        if isinstance(sources, str):
+            sources = [s.strip() for s in sources.split(",") if s.strip()]
+        out.append({
+            "title":               c.get("title", ""),
+            "score":               score,
+            "hook":                hook,
+            "significance":        significance,
+            "wikipedia_sources":   sources,
+            "estimated_cost_low":  0.45,
+            "estimated_cost_high": 0.65,
+        })
     return jsonify(out)
 
 
@@ -135,7 +154,14 @@ def approve_story(date, story_index):
 @app.route("/approve/<date>/status")
 def approval_status(date):
     approvals = load_approvals()
-    return jsonify(approvals.get(date, {"approved": []}))
+    day = approvals.get(date, {})
+    return jsonify({
+        "approved":          day.get("approved", []),
+        "declined":          day.get("declined", []),
+        "auto_cancelled":    day.get("auto_cancelled", False),
+        "auto_cancelled_at": day.get("auto_cancelled_at", None),
+        "timestamp":         day.get("timestamp", None),
+    })
 
 
 @app.route("/approve/<date>/auto")
@@ -170,12 +196,35 @@ def cancel_auto_approve(date):
     approvals[date]["auto_cancelled"]    = True
     approvals[date]["auto_cancelled_at"] = datetime.datetime.now().isoformat()
     save_approvals(approvals)
-    return """
-    <html><body style="font-family:sans-serif;max-width:500px;margin:60px auto;text-align:center;">
-    <h2>&#10003; Auto-select cancelled</h2>
-    <p>Story #1 will not be auto-approved. You can still manually approve any story from the dashboard.</p>
-    </body></html>
-    """, 200
+    return jsonify({"status": "cancelled", "message": f"Auto-select disabled for {date}"})
+
+
+@app.route("/approve/<date>/decline/<int:story_index>", methods=["POST"])
+def decline_story(date, story_index):
+    approvals = load_approvals()
+    if date not in approvals:
+        approvals[date] = {"approved": [], "declined": [],
+                           "timestamp": datetime.datetime.now().isoformat()}
+    if "declined" not in approvals[date]:
+        approvals[date]["declined"] = []
+    if story_index not in approvals[date]["declined"]:
+        approvals[date]["declined"].append(story_index)
+    save_approvals(approvals)
+
+    # Archive declined story to Drive (non-blocking)
+    try:
+        today = datetime.date.today().isoformat()
+        path  = os.path.join(TMP, today, f"candidates_{today}.json")
+        if os.path.exists(path):
+            with open(path) as f:
+                data = json.load(f)
+            candidates = data.get("candidates", [])
+            if story_index < len(candidates):
+                drive.archive_declined_story(date, story_index, candidates[story_index])
+    except Exception as e:
+        print(f"  Archive declined failed (non-fatal): {e}")
+
+    return jsonify({"status": "declined", "story_index": story_index, "date": date})
 
 
 @app.route("/approve/<date>/status-detail")
