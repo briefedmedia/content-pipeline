@@ -1122,6 +1122,28 @@ body {
     </div>
   </div>
 
+  <!-- Approve Stories button -->
+  <div style="padding: 0 16px 12px;">
+    <button onclick="window.location.href='/stories'" style="
+      background: var(--blue);
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      width: 100%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: inherit;
+    ">
+      <span>Approve Stories</span>
+      <span>→</span>
+    </button>
+  </div>
+
   <!-- Controls -->
   <div class="section-head">
     <div class="section-title">Controls</div>
@@ -1446,7 +1468,7 @@ function renderStories() {
         <button class="story-action-btn" onclick="toggleStory(${i})">📖 Hook</button>
         ${isApproved
           ? `<button class="story-action-btn approved-state">✓ Approved</button>`
-          : `<button class="story-action-btn approve" onclick="approveStory(${i}, event)">▶ Approve</button>`
+          : `<button class="story-action-btn approve" onclick="window.location.href='/stories'">View &amp; Approve →</button>`
         }
       </div>
     </div>`;
@@ -1477,23 +1499,45 @@ async function approveStory(index, e) {
   }
 }
 
+// ── apiCall helper ─────────────────────────────────────────────────────────
+
+async function apiCall(method, path, confirmMsg) {
+  if (confirmMsg && !confirm(confirmMsg)) return null;
+  try {
+    const r    = await fetch(API + path, { method });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data };
+  } catch(e) {
+    toast('Network error — check your connection', '⚠');
+    return null;
+  }
+}
+
 // ── Controls ───────────────────────────────────────────────────────────────
 
 async function triggerPhase1() {
-  toast('Starting discovery…', '📡');
-  await fetch(`${API}/run/phase1`, { method: 'POST' });
-  setTimeout(refreshAll, 3000);
+  const res = await apiCall('POST', '/run/phase1');
+  if (!res) return;
+  if (res.ok) {
+    toast('Discovery starting — check back in ~10 minutes', '📡');
+    setTimeout(refreshAll, 3000);
+  } else {
+    toast('Failed to start discovery — try again', '⚠');
+  }
 }
 
 async function cancelAutoSelect() {
   if (state.autoCancelled) { toast('Auto-select already cancelled', 'ℹ'); return; }
-  const r = await fetch(`${API}/approve/${state.today}/cancel-auto`);
-  if (r.ok || true) {
+  const res = await apiCall('POST', `/approve/${state.today}/cancel-auto`);
+  if (!res) return;
+  if (res.ok) {
     state.autoCancelled = true;
     updateCancelBtn();
     stopCountdown();
     document.getElementById('countdownBar').classList.add('hidden');
     toast('Auto-select cancelled', '🚫');
+  } else {
+    toast('Failed — try again', '⚠');
   }
 }
 
@@ -1511,16 +1555,27 @@ function updateCancelBtn() {
 }
 
 async function triggerTTSFallback() {
-  toast('Triggering TTS assembly…', '🎙');
-  await fetch(`${API}/run/phase3?trigger=manual_tts`, { method: 'POST' });
-  setTimeout(refreshAll, 3000);
+  const res = await apiCall('POST', '/run/phase3?trigger=manual_tts',
+    'Assemble this story using AI voice now?');
+  if (!res) return;
+  if (res.ok) {
+    toast('TTS assembly starting — ~15 minutes', '🎙');
+    setTimeout(refreshAll, 3000);
+  } else {
+    toast('Failed to start assembly', '⚠');
+  }
 }
 
 async function rerunDiscovery() {
-  if (!confirm('This will discard today\'s stories and re-run discovery. Continue?')) return;
-  toast('Re-running discovery…', '🔄');
-  await fetch(`${API}/run/phase1?rerun=true`, { method: 'POST' });
-  setTimeout(refreshAll, 5000);
+  const res = await apiCall('POST', '/run/phase1?rerun=true',
+    "Discard today's stories and fetch new ones?");
+  if (!res) return;
+  if (res.ok) {
+    toast('Re-running discovery — new stories in ~10 minutes', '🔄');
+    setTimeout(refreshAll, 5000);
+  } else {
+    toast('Failed to restart discovery', '⚠');
+  }
 }
 
 async function breakingAction(action) {
