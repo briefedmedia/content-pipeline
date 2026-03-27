@@ -1188,30 +1188,9 @@ body {
   <div class="cost-card">
     <div class="cost-head">
       <div class="cost-title">💸 API Cost Tracker</div>
-      <div class="cost-reset" id="costReset">Resets monthly</div>
     </div>
-    <div class="cost-grid">
-      <div class="cost-item">
-        <div class="cost-item-label">This Story</div>
-        <div class="cost-item-val" id="costStory">$—</div>
-      </div>
-      <div class="cost-item">
-        <div class="cost-item-label">Today</div>
-        <div class="cost-item-val daily" id="costToday">$—</div>
-      </div>
-      <div class="cost-item">
-        <div class="cost-item-label">This Month</div>
-        <div class="cost-item-val total" id="costMonth">$—</div>
-      </div>
-    </div>
-    <div class="cost-bar-wrap">
-      <div class="cost-bar-label">
-        <span>Monthly budget</span>
-        <span id="costBudgetLabel">$0 / $50</span>
-      </div>
-      <div class="cost-bar">
-        <div class="cost-bar-fill" id="costBarFill" style="width:0%"></div>
-      </div>
+    <div id="costs-content" style="padding-top:4px;">
+      <p style="color:rgba(255,255,255,0.4);font-size:13px;">Loading...</p>
     </div>
   </div>
 
@@ -1602,19 +1581,45 @@ function renderStats() {
 
 // ── Costs ──────────────────────────────────────────────────────────────────
 
-function renderCosts() {
-  // Estimated costs — will be real when /pipeline/costs endpoint is added
-  const story = (Math.random() * 0.4 + 0.3).toFixed(2);
-  const today = (Math.random() * 0.6 + 0.4).toFixed(2);
-  const month = (Math.random() * 8 + 4).toFixed(2);
-  const pct = Math.min(100, (month / BUDGET * 100)).toFixed(0);
+async function renderCosts() {
+  try {
+    const r = await fetch('/pipeline/costs?days=30');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const varTotal   = d.variable?.total   ?? 0;
+    const fixedTotal = d.fixed?.total      ?? 0;
+    const budget     = d.budget            ?? 300;
+    const total      = varTotal + fixedTotal;
+    const pct        = budget > 0 ? (total / budget * 100) : 0;
+    const remaining  = Math.max(budget - total, 0);
+    const byService  = d.variable?.by_service ?? {};
 
-  document.getElementById('costStory').textContent = `$${story}`;
-  document.getElementById('costToday').textContent = `$${today}`;
-  document.getElementById('costMonth').textContent = `$${month}`;
-  document.getElementById('costBudgetLabel').textContent = `$${month} / $${BUDGET}`;
-  document.getElementById('costBarFill').style.width = `${pct}%`;
-  document.getElementById('costReset').textContent = `${pct}% of monthly budget`;
+    const svcLines = Object.entries(byService)
+      .sort((a,b) => b[1]-a[1])
+      .map(([s,c]) => `<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span style="color:rgba(255,255,255,0.6)">${s}</span><span>$${c.toFixed(3)}</span></div>`)
+      .join('');
+
+    const pctColor = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--orange)' : 'var(--green)';
+
+    document.getElementById('costs-content').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">
+        <span style="font-size:26px;font-weight:700;">$${total.toFixed(2)}</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.5);">${pct.toFixed(0)}% of $${budget}</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.07);border-radius:4px;height:6px;margin-bottom:16px;">
+        <div style="background:${pctColor};height:6px;border-radius:4px;width:${Math.min(pct,100).toFixed(0)}%;transition:width 0.6s;"></div>
+      </div>
+      ${svcLines}
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;font-size:13px;">
+        <span style="color:rgba(255,255,255,0.5)">Remaining</span>
+        <span style="color:${remaining < 20 ? 'var(--red)' : 'var(--green)'}">$${remaining.toFixed(2)}</span>
+      </div>
+      <a href="/costs" style="display:block;margin-top:14px;text-align:center;color:var(--blue);font-size:13px;text-decoration:none;">View Full Cost Report →</a>
+    `;
+  } catch(e) {
+    const el = document.getElementById('costs-content');
+    if (el) el.innerHTML = `<p style="color:rgba(255,255,255,0.4);font-size:13px;">Cost data unavailable</p><a href="/costs" style="color:var(--blue);font-size:13px;">Open Cost Dashboard →</a>`;
+  }
 }
 
 // ── History ────────────────────────────────────────────────────────────────

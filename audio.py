@@ -145,7 +145,7 @@ def _format_time(seconds):
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-def run_audio(script_data, account_type="history"):
+def run_audio(script_data, account_type="history", tracker=None):
     today    = datetime.date.today().isoformat()
     slug     = script_data.get("slug") or f"{today}_{account_type}"
     slug_dir = os.path.join(TMP, slug)
@@ -157,6 +157,8 @@ def run_audio(script_data, account_type="history"):
     # Priority 2 -- TTS (Google primary, Edge fallback)
     if audio_path is None:
         audio_path = generate_tts(script_data["script"], account_type, today, slug_dir)
+        if tracker:
+            tracker.add_tts(len(script_data["script"]))
 
     # Upload to Drive/05_audio/slug/
     audio_folder_id = get_or_create_story_folder(slug, "audio")

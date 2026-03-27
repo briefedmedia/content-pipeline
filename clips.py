@@ -162,7 +162,7 @@ def download_and_upload_clip(video_url, clip_num, slug, clips_folder_id,
 
 # ── Main entry point ───────────────────────────────────────────────────────────
 
-def run_clip_generation(image_paths, account_type='history'):
+def run_clip_generation(image_paths, account_type='history', tracker=None):
     """
     Generate one video clip per image.
     Slug is read from image_paths[0]['slug'] -- set by images.py, never regenerated.
@@ -203,6 +203,14 @@ def run_clip_generation(image_paths, account_type='history'):
         video_url = generate_clip(img['path'], motion, 5, account_type)
         path, fid = download_and_upload_clip(video_url, i, slug, clips_folder_id,
                                              section=section, visual_label=visual_label)
+        if tracker:
+            _gen = get_generator(account_type)
+            _fal_endpoints = {
+                'pika':  'fal-ai/pika/v2.2/image-to-video',
+                'kling': 'fal-ai/kling-video/v2.5/turbo/image-to-video',
+            }
+            if _gen in _fal_endpoints:
+                tracker.add_fal(i, _fal_endpoints[_gen], 5.0)
 
         clip_paths.append({'path': path, 'drive_id': fid, 'slug': slug})
         print(f'  Clip {i+1} saved: {path}')

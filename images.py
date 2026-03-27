@@ -75,7 +75,7 @@ def generate_image(scene_description, style_key, scene_num, slug, images_folder_
     fid = upload_file(local_path, "images", folder_id=images_folder_id)
     return local_path, fid
 
-def run_image_generation(script_data, style_key="history_old"):
+def run_image_generation(script_data, style_key="history_old", tracker=None):
     # Slug flows from script_data -- single source of truth
     slug = script_data.get("slug")
     if not slug:
@@ -116,6 +116,8 @@ def run_image_generation(script_data, style_key="history_old"):
             "visual_label": visual_label,
             "slug":         slug,
         })
+        if tracker:
+            tracker.add_dalle(1, "hd")
     print(f"Generated {len(image_paths)} images → Drive/images/{slug}/")
     return image_paths
 

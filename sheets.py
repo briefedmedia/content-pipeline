@@ -27,19 +27,24 @@ def _get_service_account_file():
 
 SERVICE_ACCOUNT_FILE = _get_service_account_file()
 
-_sheet = None
+_sheet       = None
+_spreadsheet = None
+
+def _get_spreadsheet():
+    """Lazy-initialize gspread spreadsheet object (needed for multi-worksheet access)."""
+    global _spreadsheet
+    if _spreadsheet is None:
+        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        gc = gspread.authorize(creds)
+        _spreadsheet = gc.open_by_key(sheet_id) if sheet_id else gc.open("pipeline_log")
+    return _spreadsheet
 
 def _get_sheet():
     """Lazy-initialize gspread connection to avoid import-time failures."""
     global _sheet
     if _sheet is None:
-        sheet_id = os.getenv("GOOGLE_SHEET_ID")
-        creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-        client = gspread.authorize(creds)
-        if sheet_id:
-            _sheet = client.open_by_key(sheet_id).sheet1
-        else:
-            _sheet = client.open("pipeline_log").sheet1
+        _sheet = _get_spreadsheet().sheet1
     return _sheet
 
 # =========================
@@ -213,3 +218,77 @@ def update_breaking_job(job_id, updates):
     today = datetime.date.today().isoformat()
     sheet.append_row([now, today, "", f"breaking_{job_id}_update", json.dumps(updates)])
     print(f"[Sheets] Updated breaking job: {job_id}")
+
+
+# =========================
+# COST TRACKING
+# =========================
+
+def log_cost(tracker_summary):
+    """Log a per-story cost breakdown to the 'costs' worksheet."""
+    try:
+        spreadsheet = _get_spreadsheet()
+        try:
+            ws = spreadsheet.worksheet("costs")
+        except Exception:
+            ws = spreadsheet.add_worksheet(title="costs", rows="1000", cols="10")
+            ws.append_row(
+                ["timestamp", "date", "slug", "account_type", "total",
+                 "by_service", "entries"],
+                value_input_option="RAW"
+            )
+        now = datetime.datetime.now().isoformat()
+        ws.append_row([
+            now,
+            tracker_summary.get("date", ""),
+            tracker_summary.get("slug", ""),
+            tracker_summary.get("account_type", ""),
+            tracker_summary.get("total", 0),
+            json.dumps(tracker_summary.get("by_service", {})),
+            json.dumps(tracker_summary.get("entries", [])),
+        ], value_input_option="RAW")
+        print(f"  [Sheets] Cost logged: ${tracker_summary.get('total', 0):.4f}")
+    except Exception as e:
+        print(f"  [Sheets] log_cost failed (non-fatal): {e}")
+
+
+def get_cost_summary(n_days=30):
+    """Return cost rows from the 'costs' worksheet for the past n_days."""
+    try:
+        spreadsheet = _get_spreadsheet()
+        try:
+            ws = spreadsheet.worksheet("costs")
+        except Exception:
+            return {"rows": [], "total": 0.0, "by_service": {}}
+        rows = ws.get_all_values()
+        if len(rows) < 2:
+            return {"rows": [], "total": 0.0, "by_service": {}}
+        cutoff     = (datetime.date.today() - datetime.timedelta(days=n_days)).isoformat()
+        result_rows = []
+        total       = 0.0
+        by_service  = {}
+        for row in rows[1:]:
+            if len(row) < 5:
+                continue
+            date = row[1] if len(row) > 1 else ""
+            if date < cutoff:
+                continue
+            try:
+                row_total = float(row[4])
+                total    += row_total
+                svc_data  = json.loads(row[5]) if len(row) > 5 and row[5] else {}
+                for svc, cost in svc_data.items():
+                    by_service[svc] = round(by_service.get(svc, 0.0) + cost, 6)
+                result_rows.append({
+                    "date":         date,
+                    "slug":         row[2] if len(row) > 2 else "",
+                    "account_type": row[3] if len(row) > 3 else "",
+                    "total":        row_total,
+                    "by_service":   svc_data,
+                })
+            except Exception:
+                continue
+        return {"rows": result_rows, "total": round(total, 4), "by_service": by_service}
+    except Exception as e:
+        print(f"  [Sheets] get_cost_summary failed: {e}")
+        return {"rows": [], "total": 0.0, "by_service": {}}

@@ -27,6 +27,13 @@ def dashboard():
     return open("dashboard.html").read(), 200, {"Content-Type": "text/html"}
 
 
+@app.route("/costs")
+def costs_page():
+    if os.path.exists("costs_page.html"):
+        return open("costs_page.html").read(), 200, {"Content-Type": "text/html"}
+    return "<h2>costs_page.html not found</h2>", 404
+
+
 @app.route("/stories")
 def stories_page():
     import os as _os
@@ -103,6 +110,60 @@ def pipeline_history():
 @app.route("/status")
 def status():
     return jsonify({"pipeline": "running"})
+
+
+@app.route("/pipeline/costs")
+def pipeline_costs():
+    """Cost summary for the cost dashboard page."""
+    try:
+        from sheets import get_cost_summary
+        from costs  import get_fixed_costs, MONTHLY_BUDGET
+        n_days  = int(request.args.get("days", 30))
+        summary = get_cost_summary(n_days)
+        fixed   = get_fixed_costs()
+        return jsonify({
+            "ok":           True,
+            "period_days":  n_days,
+            "variable":     summary,
+            "fixed":        fixed,
+            "budget":       MONTHLY_BUDGET,
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/pipeline/costs/prices")
+def pipeline_cost_prices():
+    """Live FAL pricing + confirmed static rates."""
+    try:
+        from costs import (
+            fetch_fal_pricing,
+            CLAUDE_OPUS_INPUT_PER_MTK, CLAUDE_OPUS_OUTPUT_PER_MTK,
+            CLAUDE_SONNET_INPUT_PER_MTK, CLAUDE_SONNET_OUTPUT_PER_MTK,
+            DALLE3_HD_PER_IMAGE, DALLE3_STD_PER_IMAGE,
+            GOOGLE_TTS_NEURAL2_PER_MCHAR, GOOGLE_TTS_FREE_MONTHLY_CHARS,
+        )
+        fal_prices = fetch_fal_pricing()
+        return jsonify({
+            "ok": True,
+            "claude": {
+                "opus_input_per_mtk":    CLAUDE_OPUS_INPUT_PER_MTK,
+                "opus_output_per_mtk":   CLAUDE_OPUS_OUTPUT_PER_MTK,
+                "sonnet_input_per_mtk":  CLAUDE_SONNET_INPUT_PER_MTK,
+                "sonnet_output_per_mtk": CLAUDE_SONNET_OUTPUT_PER_MTK,
+            },
+            "dalle3": {
+                "hd_per_image":  DALLE3_HD_PER_IMAGE,
+                "std_per_image": DALLE3_STD_PER_IMAGE,
+            },
+            "google_tts": {
+                "neural2_per_mchar":   GOOGLE_TTS_NEURAL2_PER_MCHAR,
+                "free_monthly_chars":  GOOGLE_TTS_FREE_MONTHLY_CHARS,
+            },
+            "fal": fal_prices,
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 # --- List pending audio recordings ---
 @app.route("/pending")

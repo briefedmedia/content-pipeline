@@ -8,7 +8,8 @@ from clips    import run_clip_generation
 from audio    import run_audio
 from assemble import assemble_video, assemble_silent_preview
 from publish  import publish_all
-from sheets   import log_job, save_todays_script, load_todays_script, load_todays_clips, save_todays_clips
+from sheets   import log_job, save_todays_script, load_todays_script, load_todays_clips, save_todays_clips, log_cost
+from costs    import CostTracker
 from notify   import send_notification
 
 def run_phase1(account_type="news"):
@@ -104,13 +105,16 @@ def run_phase2_for_story(date, story_index, account_type="news"):
         print(f"Story index {story_index} out of range ({len(qualified)} qualified)")
         return
 
-    story            = qualified[story_index]
-    script_data, fid = run_scripting([story], account_type)
+    story    = qualified[story_index]
+    tracker  = CostTracker(f"{date}_story{story_index}", account_type)
+    script_data, fid, tracker = run_scripting([story], account_type, tracker=tracker)
     slug             = script_data["slug"]
+    tracker.slug     = slug
+    tracker.date     = slug[:10]
 
     style       = "history_old" if account_type == "history" else "news"
-    image_paths = run_image_generation(script_data, style)
-    clip_paths  = run_clip_generation(image_paths, account_type)
+    image_paths = run_image_generation(script_data, style, tracker=tracker)
+    clip_paths  = run_clip_generation(image_paths, account_type, tracker=tracker)
 
     preview_path = assemble_silent_preview(clip_paths, script_data["title"], slug)
     previews_fid = get_or_create_story_folder(slug, "previews")
@@ -147,7 +151,10 @@ def run_phase2_for_story(date, story_index, account_type="news"):
     notify_preview_ready(script_data["title"], account_type,
                          preview_drive_path=f"Drive/previews/{slug}/")
 
-    log_job(account_type, "2", status="success")
+    phase2_summary = tracker.summary()
+    log_cost(phase2_summary)
+    log_job(account_type, "2", status="success",
+            note=f"cost=${phase2_summary['total']:.4f}")
 
 def run_phase2(account_type="history"):
     """Images + clips + silent preview. Runs immediately after Phase 1."""
@@ -187,13 +194,16 @@ def run_phase3(account_type="history", trigger="cron", slug=None, force_assemble
                 title="Recording detected -- production starting",
                 message=f"Building final video: {script_data['title']}\nReady in ~15 minutes.",
                 priority="normal")
-        audio_path, srt_path = run_audio(script_data, account_type)
+        p3_tracker = CostTracker(slug, account_type)
+        audio_path, srt_path = run_audio(script_data, account_type, tracker=p3_tracker)
         outputs = assemble_video(clip_paths, audio_path, srt_path, script_data["title"], slug,
                                  script_data=script_data, force_assemble=force_assemble)
         if outputs is None:
             job.update({"status": "vo_mismatch"})
             return
         publish_all(outputs, srt_path, script_data, account_type)
+        p3_summary = p3_tracker.summary()
+        log_cost(p3_summary)
         job.update({"title": script_data["title"], "status": "success",
                     "duration": outputs["duration"],
                     "clean_drive_id": outputs["clean"]["drive_id"],

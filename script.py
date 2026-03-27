@@ -560,7 +560,7 @@ def validate_word_count(script_text):
 
 # ── Force trim -- must be defined before audit_bias and quality_check ──────────
 
-def force_trim(script_data):
+def force_trim(script_data, tracker=None):
     """
     Emergency trim when script exceeds soft cap.
     Called before audit_bias and quality_check to prevent token overflow.
@@ -580,6 +580,9 @@ def force_trim(script_data):
         ),
         messages   = [{"role": "user", "content": script_data["script"]}]
     )
+    if tracker:
+        tracker.add_claude("force_trim", CLAUDE_MODEL_FAST,
+                           msg.usage.input_tokens, msg.usage.output_tokens)
     raw = msg.content[0].text.strip()
     if not raw:
         print(f"  Force trim returned empty -- keeping original")
@@ -596,13 +599,16 @@ def force_trim(script_data):
 
 # ── Four Claude calls ──────────────────────────────────────────────────────────
 
-def select_story(candidates):
+def select_story(candidates, tracker=None):
     msg = client.messages.create(
         model       = CLAUDE_MODEL_FAST,
         max_tokens  = 500,
         system      = SELECTOR_PROMPT,
         messages    = [{"role": "user", "content": json.dumps(candidates)}]
     )
+    if tracker:
+        tracker.add_claude("select_story", CLAUDE_MODEL_FAST,
+                           msg.usage.input_tokens, msg.usage.output_tokens)
     raw = msg.content[0].text
     try:
         return json.loads(strip_fences(raw))
@@ -685,7 +691,7 @@ def _repair_script_json(cleaned, raw, story):
     return result
 
 
-def write_script(story, account_type="history"):
+def write_script(story, account_type="history", tracker=None):
     prompt = HISTORY_SCRIPT_PROMPT if account_type == "history" else NEWS_SCRIPT_PROMPT
     msg = client.messages.create(
         model      = CLAUDE_MODEL_BEST,
@@ -693,6 +699,9 @@ def write_script(story, account_type="history"):
         system     = prompt,
         messages   = [{"role": "user", "content": json.dumps(story)}]
     )
+    if tracker:
+        tracker.add_claude("write_script", CLAUDE_MODEL_BEST,
+                           msg.usage.input_tokens, msg.usage.output_tokens)
     raw     = msg.content[0].text
     cleaned = strip_fences(raw)
 
@@ -741,7 +750,7 @@ def write_script(story, account_type="history"):
     validate_word_count(result["script"])
     return result
 
-def write_shorts_script(script_data):
+def write_shorts_script(script_data, tracker=None):
     """
     Trim existing script to YouTube Shorts length (50-58 seconds, ~145 words max).
     One Claude call -- no new story research, reuses existing script_data.
@@ -778,6 +787,9 @@ Return JSON only, no markdown fences:
         system     = SHORTS_PROMPT,
         messages   = [{"role": "user", "content": script_data["script"]}]
     )
+    if tracker:
+        tracker.add_claude("write_shorts_script", CLAUDE_MODEL_FAST,
+                           msg.usage.input_tokens, msg.usage.output_tokens)
     raw = msg.content[0].text.strip()
     try:
         result = json.loads(strip_fences(raw))
@@ -790,10 +802,10 @@ Return JSON only, no markdown fences:
         script_data["shorts_script"] = None
     return script_data
 
-def audit_bias(script_data, max_retries=2):
+def audit_bias(script_data, max_retries=2, tracker=None):
     # Pre-trim if over word limit
     if len(script_data["script"].split()) > WORD_SOFT_CAP:
-        script_data = force_trim(script_data)
+        script_data = force_trim(script_data, tracker)
 
     original_hook   = script_data["script"].split(".")[0]
     prev_flag_count = None
@@ -806,6 +818,9 @@ def audit_bias(script_data, max_retries=2):
             system     = BIAS_AUDIT_PROMPT,
             messages   = [{"role": "user", "content": script_data["script"]}]
         )
+        if tracker:
+            tracker.add_claude("audit_bias", CLAUDE_MODEL_BEST,
+                               msg.usage.input_tokens, msg.usage.output_tokens)
 
         raw = msg.content[0].text.strip()
 
@@ -892,10 +907,10 @@ def audit_bias(script_data, max_retries=2):
     return script_data
 
 
-def quality_check(script_data, max_retries=2):
+def quality_check(script_data, max_retries=2, tracker=None):
     # Pre-trim if over word limit before quality check
     if len(script_data["script"].split()) > WORD_SOFT_CAP:
-        script_data = force_trim(script_data)
+        script_data = force_trim(script_data, tracker)
 
     for i in range(max_retries):
         msg = client.messages.create(
@@ -904,6 +919,9 @@ def quality_check(script_data, max_retries=2):
             system     = QUALITY_CHECK_PROMPT,
             messages   = [{"role": "user", "content": script_data["script"]}]
         )
+        if tracker:
+            tracker.add_claude("quality_check", CLAUDE_MODEL_BEST,
+                               msg.usage.input_tokens, msg.usage.output_tokens)
 
         raw = msg.content[0].text.strip()
 
@@ -966,7 +984,7 @@ def quality_check(script_data, max_retries=2):
     return script_data
 
 
-def check_for_breaking(story, account_type="news"):
+def check_for_breaking(story, account_type="news", tracker=None):
     """Check if a story qualifies as breaking news (called by scanner)."""
     BREAKING_PROMPT = """You are a news editor. Does this story qualify as BREAKING?
 Criteria: happened in last 6 hours, genuinely significant, publishing within
@@ -981,6 +999,9 @@ Return JSON only, no markdown fences:
         system     = BREAKING_PROMPT,
         messages   = [{"role": "user", "content": json.dumps(story)}]
     )
+    if tracker:
+        tracker.add_claude("check_for_breaking", CLAUDE_MODEL_FAST,
+                           msg.usage.input_tokens, msg.usage.output_tokens)
     result = json.loads(strip_fences(msg.content[0].text))
     if result["breaking"] and result["urgency"] >= 7:
         from breaking import handle_breaking
@@ -1109,7 +1130,7 @@ def generate_script_pdf(script_data, slug_dir, account_type="news"):
 
 # ── Main entry point ───────────────────────────────────────────────────────────
 
-def run_scripting(candidates, account_type="history"):
+def run_scripting(candidates, account_type="history", tracker=None):
     # Hard filter -- remove stories below minimum explainability threshold
     qualified = [
         c for c in candidates
@@ -1123,21 +1144,21 @@ def run_scripting(candidates, account_type="history"):
     else:
         print(f"  {len(qualified)}/{len(candidates)} candidates qualify (score >= {MIN_EXPLAINABILITY_SCORE})")
 
-    selected = select_story(qualified)
+    selected = select_story(qualified, tracker=tracker)
     if selected is None:
         raise ValueError("Story selection failed -- check selector raw response above")
     story       = qualified[selected["index"]]
     print(f"  Selected: {selected['title']}")
 
-    script_data = write_script(story, account_type)
+    script_data = write_script(story, account_type, tracker=tracker)
     print(f"  Slug: {script_data['slug']}")   # confirm slug matches selected story
 
     if account_type == "news":
-        script_data = audit_bias(script_data)
+        script_data = audit_bias(script_data, tracker=tracker)
 
-    script_data = quality_check(script_data)
-    
-    script_data = write_shorts_script(script_data)
+    script_data = quality_check(script_data, tracker=tracker)
+
+    script_data = write_shorts_script(script_data, tracker=tracker)
 
     # ── Slug-based paths ───────────────────────────────────────────────────────
     slug     = script_data["slug"]           # e.g. "2026-03-24_trump-greenland"
@@ -1198,7 +1219,7 @@ def run_scripting(candidates, account_type="history"):
     except Exception as e:
         print(f"  PDF generation failed (non-fatal): {e}")
 
-    return script_data, fid
+    return script_data, fid, tracker
 
 
 # ── Test block ─────────────────────────────────────────────────────────────────
@@ -1219,7 +1240,7 @@ if __name__ == "__main__":
         print(f"Loaded {len(candidates)} candidates from {candidates_path}\n")
 
         # Change account_type to "history" to test the history branch
-        script_data, fid = run_scripting(candidates, account_type="news")
+        script_data, fid, _ = run_scripting(candidates, account_type="news")
 
         print(f"\n{'─' * 65}")
         print(f"Title:      {script_data['title']}")

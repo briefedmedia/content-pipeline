@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Briefed — Cost Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #000;
+    --card:      #111;
+    --border:    rgba(255,255,255,0.08);
+    --blue:      #0A84FF;
+    --green:     #30D158;
+    --orange:    #FF9F0A;
+    --red:       #FF453A;
+    --purple:    #BF5AF2;
+    --text:      #fff;
+    --text2:     rgba(255,255,255,0.55);
+    --text3:     rgba(255,255,255,0.30);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; min-height: 100vh; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+  header .back { color: var(--blue); text-decoration: none; font-size: 15px; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .badge-blue   { background: rgba(10,132,255,0.15);  color: var(--blue); }
+  .badge-green  { background: rgba(48,209,88,0.15);   color: var(--green); }
+  .badge-orange { background: rgba(255,159,10,0.15);  color: var(--orange); }
+  .badge-red    { background: rgba(255,69,58,0.15);   color: var(--red); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  .section-title {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.4px;
+    text-transform: uppercase; color: var(--text2);
+    margin: 32px 0 12px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border-radius: 16px;
+    border: 1px solid var(--border); padding: 20px;
+  }
+  .card-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+  .card-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .card-sub   { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* Budget ring */
+  .budget-card {
+    background: var(--card); border-radius: 16px;
+    border: 1px solid var(--border); padding: 24px;
+    display: flex; gap: 24px; align-items: center;
+  }
+  .ring-wrap { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .ring-wrap canvas { width: 120px !important; height: 120px !important; }
+  .ring-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .ring-pct  { font-size: 20px; font-weight: 700; }
+  .ring-used { font-size: 10px; color: var(--text2); margin-top: 2px; }
+  .budget-detail { flex: 1; }
+  .budget-detail h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .budget-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .budget-row span:last-child { color: var(--text2); }
+
+  /* Chart card */
+  .chart-card { background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 20px; }
+  .chart-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 200px; }
+
+  /* Service breakdown */
+  .svc-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .svc-row:last-child { border-bottom: none; }
+  .svc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .svc-name { flex: 1; }
+  .svc-total { font-weight: 600; }
+  .svc-bar-wrap { width: 80px; background: rgba(255,255,255,0.07); border-radius: 4px; height: 6px; }
+  .svc-bar { height: 6px; border-radius: 4px; }
+
+  /* Rates table */
+  .rates-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (max-width: 600px) { .rates-grid { grid-template-columns: 1fr; } }
+  .rate-item {
+    background: rgba(255,255,255,0.04); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .rate-svc  { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text2); margin-bottom: 4px; }
+  .rate-name { font-size: 13px; margin-bottom: 2px; }
+  .rate-val  { font-size: 16px; font-weight: 700; }
+  .rate-unit { font-size: 11px; color: var(--text2); }
+
+  /* Subscriptions */
+  .sub-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .sub-row:last-child { border-bottom: none; }
+  .sub-total-row {
+    display: flex; justify-content: space-between;
+    font-size: 14px; font-weight: 600; padding-top: 10px;
+    border-top: 1px solid var(--border); margin-top: 4px;
+  }
+
+  /* Stories list */
+  .story-row {
+    display: flex; gap: 12px; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .story-row:last-child { border-bottom: none; }
+  .story-date { color: var(--text2); width: 90px; flex-shrink: 0; font-size: 12px; }
+  .story-slug { flex: 1; color: var(--text); font-weight: 500; }
+  .story-svc  { color: var(--text2); font-size: 11px; flex: 1; }
+  .story-cost { font-weight: 600; text-align: right; }
+
+  .empty { color: var(--text2); font-size: 14px; padding: 20px 0; }
+
+  .spinner {
+    display: inline-block; width: 20px; height: 20px;
+    border: 2px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .refresh-btn {
+    background: none; border: 1px solid var(--border); color: var(--text2);
+    border-radius: 8px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+  }
+  .refresh-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="back">← Dashboard</a>
+  <h1>Cost Dashboard</h1>
+  <button class="refresh-btn" onclick="loadAll()">Refresh</button>
+</header>
+
+<main>
+
+  <!-- KPI row -->
+  <p class="section-title">This Month</p>
+  <div class="grid-3" id="kpi-row">
+    <div class="card"><div class="card-label">Variable Spend (30d)</div><div class="card-value" id="kpi-var">—</div><div class="card-sub" id="kpi-var-sub"></div></div>
+    <div class="card"><div class="card-label">Fixed Subscriptions</div><div class="card-value" id="kpi-fixed">—</div><div class="card-sub">per month</div></div>
+    <div class="card"><div class="card-label">Total Est. Monthly</div><div class="card-value" id="kpi-total">—</div><div class="card-sub" id="kpi-total-sub"></div></div>
+  </div>
+
+  <!-- Budget ring + breakdown -->
+  <p class="section-title">Budget</p>
+  <div class="budget-card">
+    <div class="ring-wrap">
+      <canvas id="ring-chart"></canvas>
+      <div class="ring-center">
+        <span class="ring-pct" id="ring-pct">—</span>
+        <span class="ring-used">used</span>
+      </div>
+    </div>
+    <div class="budget-detail">
+      <h3 id="budget-title">Monthly Budget: $300</h3>
+      <div class="budget-row"><span>Variable (30d)</span><span id="bd-var">—</span></div>
+      <div class="budget-row"><span>Fixed subscriptions</span><span id="bd-fixed">—</span></div>
+      <div class="budget-row"><span>Remaining</span><span id="bd-remaining">—</span></div>
+    </div>
+  </div>
+
+  <!-- Spend over time chart -->
+  <p class="section-title">Daily Spend (30 days)</p>
+  <div class="chart-card">
+    <h3>Cost per story</h3>
+    <div class="chart-wrap"><canvas id="bar-chart"></canvas></div>
+  </div>
+
+  <!-- Service breakdown -->
+  <p class="section-title">Variable Cost by Service</p>
+  <div class="card" id="svc-list"><div class="spinner"></div></div>
+
+  <!-- Subscriptions -->
+  <p class="section-title">Fixed Monthly Subscriptions</p>
+  <div class="card" id="sub-list"><div class="spinner"></div></div>
+
+  <!-- Live rates -->
+  <p class="section-title">Live Rates</p>
+  <div class="card"><div class="rates-grid" id="rates-grid"><div class="spinner"></div></div></div>
+
+  <!-- Recent stories -->
+  <p class="section-title">Recent Stories</p>
+  <div class="card" id="stories-list"><div class="spinner"></div></div>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => n == null ? '—' : '$' + n.toFixed(n < 1 ? 4 : 2);
+const SVC_COLORS = {
+  'Claude Opus':   '#BF5AF2',
+  'Claude Sonnet': '#0A84FF',
+  'DALL-E 3':      '#FF9F0A',
+  'FAL.ai':        '#30D158',
+  'Google TTS':    '#FF453A',
+};
+
+let ringChart = null, barChart = null;
+
+async function loadAll() {
+  try {
+    const [costs, prices] = await Promise.all([
+      fetch('/pipeline/costs?days=30').then(r => r.json()),
+      fetch('/pipeline/costs/prices').then(r => r.json()),
+    ]);
+    renderKPI(costs);
+    renderBudget(costs);
+    renderBarChart(costs);
+    renderServices(costs);
+    renderSubscriptions(costs);
+    renderStories(costs);
+    if (prices.ok) renderRates(prices);
+  } catch(e) {
+    console.error('Cost load error:', e);
+  }
+}
+
+function renderKPI(d) {
+  const varTotal   = d.variable?.total   ?? 0;
+  const fixedTotal = d.fixed?.total      ?? 0;
+  const budget     = d.budget            ?? 300;
+  const total      = varTotal + fixedTotal;
+  const pct        = budget > 0 ? (total / budget * 100) : 0;
+  const remaining  = Math.max(budget - total, 0);
+  const color      = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--orange)' : 'var(--green)';
+
+  $('kpi-var').textContent     = fmt(varTotal);
+  $('kpi-var-sub').textContent = `${(d.variable?.rows ?? []).length} stories`;
+  $('kpi-fixed').textContent   = fmt(fixedTotal);
+  $('kpi-total').style.color   = color;
+  $('kpi-total').textContent   = fmt(total);
+  $('kpi-total-sub').textContent = `${pct.toFixed(0)}% of $${budget} budget`;
+}
+
+function renderBudget(d) {
+  const varTotal   = d.variable?.total   ?? 0;
+  const fixedTotal = d.fixed?.total      ?? 0;
+  const total      = varTotal + fixedTotal;
+  const budget     = d.budget ?? 300;
+  const pct        = Math.min(budget > 0 ? (total / budget * 100) : 0, 100);
+  const remaining  = Math.max(budget - total, 0);
+  const color      = pct > 90 ? '#FF453A' : pct > 70 ? '#FF9F0A' : '#30D158';
+
+  $('ring-pct').textContent   = pct.toFixed(0) + '%';
+  $('ring-pct').style.color   = color;
+  $('budget-title').textContent = `Monthly Budget: $${budget}`;
+  $('bd-var').textContent     = fmt(varTotal);
+  $('bd-fixed').textContent   = fmt(fixedTotal);
+  $('bd-remaining').textContent = fmt(remaining);
+  $('bd-remaining').style.color = remaining < 20 ? 'var(--red)' : 'var(--green)';
+
+  const ctx = $('ring-chart').getContext('2d');
+  if (ringChart) ringChart.destroy();
+  ringChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [pct, 100 - pct],
+        backgroundColor: [color, 'rgba(255,255,255,0.06)'],
+        borderWidth: 0, cutout: '78%',
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, animation: { duration: 600 } }
+  });
+}
+
+function renderBarChart(d) {
+  const rows = d.variable?.rows ?? [];
+  // Group by date
+  const byDate = {};
+  for (const r of rows) {
+    byDate[r.date] = (byDate[r.date] || 0) + r.total;
+  }
+  const dates = Object.keys(byDate).sort();
+  const vals  = dates.map(dt => byDate[dt]);
+  const ctx   = $('bar-chart').getContext('2d');
+  if (barChart) barChart.destroy();
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: dates.map(d => d.slice(5)),
+      datasets: [{
+        data: vals,
+        backgroundColor: 'rgba(10,132,255,0.6)',
+        borderRadius: 4, borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 11 }, callback: v => '$' + v.toFixed(2) } },
+      }
+    }
+  });
+}
+
+function renderServices(d) {
+  const byService = d.variable?.by_service ?? {};
+  const total     = d.variable?.total ?? 1;
+  const entries   = Object.entries(byService).sort((a,b) => b[1]-a[1]);
+  const el = $('svc-list');
+  if (!entries.length) { el.innerHTML = '<p class="empty">No variable costs yet.</p>'; return; }
+  el.innerHTML = entries.map(([svc, cost]) => {
+    const pct   = total > 0 ? (cost / total * 100) : 0;
+    const color = SVC_COLORS[svc] || '#888';
+    return `<div class="svc-row">
+      <div class="svc-dot" style="background:${color}"></div>
+      <div class="svc-name">${svc}</div>
+      <div class="svc-bar-wrap"><div class="svc-bar" style="width:${pct.toFixed(0)}%;background:${color}"></div></div>
+      <div class="svc-total">${fmt(cost)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderSubscriptions(d) {
+  const items = d.fixed?.items ?? {};
+  const total = d.fixed?.total ?? 0;
+  const el = $('sub-list');
+  if (!Object.keys(items).length) { el.innerHTML = '<p class="empty">No fixed costs configured.</p>'; return; }
+  const rows = Object.entries(items).map(([name, cost]) =>
+    `<div class="sub-row"><span>${name}</span><span>${fmt(cost)}/mo</span></div>`
+  ).join('');
+  el.innerHTML = rows + `<div class="sub-total-row"><span>Total</span><span>${fmt(total)}/mo</span></div>`;
+}
+
+function renderRates(p) {
+  const items = [
+    { svc: 'Claude', name: 'Opus 4 — Input',    val: '$' + p.claude.opus_input_per_mtk.toFixed(2),  unit: 'per 1M tokens' },
+    { svc: 'Claude', name: 'Opus 4 — Output',   val: '$' + p.claude.opus_output_per_mtk.toFixed(2), unit: 'per 1M tokens' },
+    { svc: 'Claude', name: 'Sonnet 4 — Input',  val: '$' + p.claude.sonnet_input_per_mtk.toFixed(2), unit: 'per 1M tokens' },
+    { svc: 'Claude', name: 'Sonnet 4 — Output', val: '$' + p.claude.sonnet_output_per_mtk.toFixed(2), unit: 'per 1M tokens' },
+    { svc: 'DALL·E', name: 'DALL-E 3 HD',       val: '$' + p.dalle3.hd_per_image.toFixed(3),        unit: 'per image' },
+    { svc: 'DALL·E', name: 'DALL-E 3 Standard', val: '$' + p.dalle3.std_per_image.toFixed(3),       unit: 'per image' },
+    { svc: 'Google TTS', name: 'Neural2',        val: '$' + p.google_tts.neural2_per_mchar.toFixed(2), unit: 'per 1M chars' },
+    { svc: 'Google TTS', name: 'Free tier',      val: (p.google_tts.free_monthly_chars / 1e6).toFixed(0) + 'M chars', unit: 'free per month' },
+  ];
+  // Add FAL prices
+  for (const [ep, price] of Object.entries(p.fal || {})) {
+    const name = ep.split('/').pop().replace(/-/g, ' ');
+    items.push({ svc: 'FAL.ai', name, val: '$' + price.toFixed(3), unit: 'per second' });
+  }
+  $('rates-grid').innerHTML = items.map(i =>
+    `<div class="rate-item">
+      <div class="rate-svc">${i.svc}</div>
+      <div class="rate-name">${i.name}</div>
+      <div class="rate-val">${i.val} <span class="rate-unit">${i.unit}</span></div>
+    </div>`
+  ).join('');
+}
+
+function renderStories(d) {
+  const rows = (d.variable?.rows ?? []).slice().reverse().slice(0, 20);
+  const el   = $('stories-list');
+  if (!rows.length) { el.innerHTML = '<p class="empty">No story cost data yet.</p>'; return; }
+  el.innerHTML = rows.map(r => {
+    const svcs = Object.entries(r.by_service || {}).map(([s,c]) => `${s} $${c.toFixed(3)}`).join(' · ');
+    return `<div class="story-row">
+      <span class="story-date">${r.date}</span>
+      <span class="story-slug">${r.slug.replace(/^\d{4}-\d{2}-\d{2}_/, '')}</span>
+      <span class="story-svc">${svcs}</span>
+      <span class="story-cost">${fmt(r.total)}</span>
+    </div>`;
+  }).join('');
+}
+
+loadAll();
+</script>
+</body>
+</html>
