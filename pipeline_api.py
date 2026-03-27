@@ -126,11 +126,24 @@ def approve_story(date, story_index):
         approvals[date]["approved"].append(story_index)
     save_approvals(approvals)
     try:
+        import threading
         from main import run_phase2_for_story
-        run_phase2_for_story(date, story_index)
-        return f"Story {story_index + 1} approved. Script and visuals generating now.", 200
+        t = threading.Thread(
+            target=run_phase2_for_story,
+            args=(date, story_index),
+            daemon=True
+        )
+        t.start()
+        return f"""
+        <html><body style="font-family:sans-serif;max-width:500px;margin:60px auto;text-align:center;">
+        <h2>&#10003; Story {story_index + 1} approved</h2>
+        <p>Script and visuals are generating now on Railway.</p>
+        <p style="color:#888;font-size:14px;">You'll receive a Pushover notification when the silent preview is ready.<br>
+        This usually takes 20–40 minutes.</p>
+        </body></html>
+        """, 202
     except Exception as e:
-        return f"Story {story_index + 1} approved but Phase 2 trigger failed: {e}", 500
+        return f"Approval recorded but Phase 2 failed to start: {e}", 500
 
 
 @app.route("/approve/<date>/status")
