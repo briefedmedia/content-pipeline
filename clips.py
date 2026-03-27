@@ -214,8 +214,19 @@ def run_clip_generation(image_paths, account_type='history', tracker=None):
 
         clip_paths.append({'path': path, 'drive_id': fid, 'slug': slug})
         print(f'  Clip {i+1} saved: {path}')
+        # Log granular progress to Sheets
+        try:
+            from sheets import log_job
+            log_job("news", "2", status="running", note=f"clips={i+1}/{len(image_paths)}")
+        except Exception:
+            pass
 
     print(f'Generated {len(clip_paths)} clips via {generator} → Drive/clips/{slug}/')
+    try:
+        from sheets import log_job
+        log_job("news", "2", status="running", note=f"clips_done={len(clip_paths)}")
+    except Exception:
+        pass
     return clip_paths
 
 if __name__ == "__main__":

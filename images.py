@@ -118,7 +118,18 @@ def run_image_generation(script_data, style_key="history_old", tracker=None):
         })
         if tracker:
             tracker.add_dalle(1, "hd")
+        # Log granular progress to Sheets
+        try:
+            from sheets import log_job
+            log_job("news", "2", status="running", note=f"images={i+1}/{len(scenes)}")
+        except Exception:
+            pass
     print(f"Generated {len(image_paths)} images → Drive/images/{slug}/")
+    try:
+        from sheets import log_job
+        log_job("news", "2", status="running", note=f"images_done={len(image_paths)}")
+    except Exception:
+        pass
     return image_paths
 
 if __name__ == "__main__":

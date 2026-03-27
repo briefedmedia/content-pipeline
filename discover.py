@@ -460,13 +460,30 @@ def run_discovery():
         print("ERROR: No headlines fetched. Check network and RSS URLs.")
         return []
 
+    try:
+        from sheets import log_job
+        log_job("news", "1", status="running", note=f"headlines_fetched={len(all_headlines)}")
+    except Exception:
+        pass
+
     ranked_stories = rank_headlines(all_headlines)
+
+    try:
+        from sheets import log_job
+        log_job("news", "1", status="running", note=f"stories_ranked={len(ranked_stories)}")
+    except Exception:
+        pass
 
     # Stage 2
     print(f"\nStage 2: Enriching top {TOP_STORIES_TO_ENRICH} stories...")
     enriched = []
-    for story in ranked_stories[:TOP_STORIES_TO_ENRICH]:
+    for i, story in enumerate(ranked_stories[:TOP_STORIES_TO_ENRICH]):
         enriched.append(enrich_with_history(story))
+        try:
+            from sheets import log_job
+            log_job("news", "1", status="running", note=f"enriched={i+1}/{TOP_STORIES_TO_ENRICH}")
+        except Exception:
+            pass
 
     # Filter out stories below minimum explainability threshold
     from config import MIN_EXPLAINABILITY_SCORE

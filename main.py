@@ -107,18 +107,24 @@ def run_phase2_for_story(date, story_index, account_type="news"):
 
     story    = qualified[story_index]
     tracker  = CostTracker(f"{date}_story{story_index}", account_type)
+    log_job(account_type, "2", status="running", note="script_started")
     script_data, fid, tracker = run_scripting([story], account_type, tracker=tracker)
     slug             = script_data["slug"]
     tracker.slug     = slug
     tracker.date     = slug[:10]
+    log_job(account_type, "2", status="running", note=f"script_done words={script_data.get('word_count', 0)}")
 
     style       = "history_old" if account_type == "history" else "news"
     image_paths = run_image_generation(script_data, style, tracker=tracker)
+    # images.py already logs per-image progress
     clip_paths  = run_clip_generation(image_paths, account_type, tracker=tracker)
+    # clips.py already logs per-clip progress
 
+    log_job(account_type, "2", status="running", note="preview_assembling")
     preview_path = assemble_silent_preview(clip_paths, script_data["title"], slug)
     previews_fid = get_or_create_story_folder(slug, "previews")
     upload_file(preview_path, "previews", folder_id=previews_fid)
+    log_job(account_type, "2", status="running", note="preview_ready")
 
     # Create VO drop zone in pending/
     pending_folder_id = get_or_create_pending_story_folder(slug)
