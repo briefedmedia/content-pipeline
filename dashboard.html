@@ -1586,7 +1586,7 @@ function getPhaseProgress(phaseKey) {
     if (d2.clip_count > 0) { done++; }
     else if (clipProg) { done += clipProg.total > 0 ? clipProg.done / clipProg.total : 0; }
     if (hasNote(notes, 'preview_ready')) done++;
-    if (p2 === 'done') done = totalSteps;
+    if (p2 === 'done' || p2 === 'success') done = totalSteps;
     return done / totalSteps;
 
   } else if (phaseKey === '3') {
@@ -2167,58 +2167,86 @@ function openPhaseSheet(phase) {
       </div>`;
   }
 
+  function isDoneState(st) { return st === 'done' || st === 'success'; }
+
   function subState(overall, isReady) {
     if (overall === 'error') return 'error';
     if (isReady)             return 'done';
-    if (overall === 'active') return 'active';
+    if (overall === 'active' || overall === 'running') return 'active';
     return 'waiting';
+  }
+
+  // Helper to check if a progress note exists
+  function hasNote(notes, key) {
+    return (notes || []).some(n => n.includes(key));
+  }
+
+  // Helper to parse "key=N/M" from notes
+  function noteVal(notes, key) {
+    for (const n of (notes || [])) {
+      if (n.startsWith(key + '=')) return n.split('=')[1];
+    }
+    return null;
   }
 
   if (phase === '1') {
     title = 'Phase 1 — Discovery';
     const p1 = s.phase1 || 'idle';
-    const isDone = p1 === 'done';
+    const done = isDoneState(p1);
+    const notes = d1.progress_notes || [];
     const headlines = d1.headlines_fetched || 0;
     const sources   = d1.sources_checked   || 0;
     const stories   = d1.stories_found     || 0;
+    const enrichVal = noteVal(notes, 'enriched');
+    const enrichDone = done || hasNote(notes, 'enriched=8/8');
     html = `
-      ${stepRow('Fetch headlines', subState(p1, headlines > 0), headlines > 0 ? `${headlines} from ${sources} sources` : '—')}
-      ${stepRow('Rank with Claude', subState(p1, stories > 0), stories > 0 ? `${stories} selected` : '—')}
-      ${stepRow('Enrich top 8', subState(p1, isDone), isDone ? '8 stories scored' : '—')}
-      ${stepRow('Upload to Drive', subState(p1, isDone), isDone ? 'Brief + JSON' : '—')}
-      ${stepRow('Send notifications', subState(p1, isDone), isDone ? '8 Pushover sent' : '—')}`;
+      ${stepRow('Fetch headlines', subState(p1, headlines > 0 || hasNote(notes, 'headlines_fetched')), headlines > 0 ? `${headlines} from ${sources} sources` : '—')}
+      ${stepRow('Rank with Claude', subState(p1, stories > 0 || hasNote(notes, 'stories_ranked')), stories > 0 ? `${stories} selected` : hasNote(notes, 'stories_ranked') ? noteVal(notes, 'stories_ranked') + ' selected' : '—')}
+      ${stepRow('Enrich top 8', subState(p1, enrichDone) === 'done' ? 'done' : enrichVal ? 'active' : subState(p1, enrichDone), enrichVal ? enrichVal : done ? '8 stories scored' : '—')}
+      ${stepRow('Upload to Drive', subState(p1, done), done ? 'Brief + JSON' : '—')}
+      ${stepRow('Send notifications', subState(p1, done), done ? 'Pushover sent' : '—')}`;
 
   } else if (phase === '2') {
     title = 'Phase 2 — Production';
     const p2 = s.phase2 || 'idle';
+    const done = isDoneState(p2);
+    const notes = d2.progress_notes || [];
     const words   = d2.word_count        || 0;
     const swords  = d2.shorts_word_count || 0;
     const imgs    = d2.image_count       || 0;
     const clips   = d2.clip_count        || 0;
-    const hasScript = words > 0;
-    const hasImgs   = imgs  > 0;
-    const hasClips  = clips > 0;
+    const hasScript = words > 0 || hasNote(notes, 'script_done');
+    const hasImgs   = imgs  > 0 || hasNote(notes, 'images_done');
+    const hasClips  = clips > 0 || hasNote(notes, 'clips_done');
+    const imgProgress = noteVal(notes, 'images_done') || noteVal(notes, 'images');
+    const clipProgress = noteVal(notes, 'clips_done') || noteVal(notes, 'clips');
+    const previewReady = done || hasNote(notes, 'preview_ready');
     html = `
-      ${stepRow('Write script (Opus)', subState(p2, hasScript), hasScript ? `${words} words` : '—')}
-      ${stepRow('Shorts cut', subState(p2, swords > 0), swords > 0 ? `${swords} words` : '—')}
+      ${stepRow('Write script (Opus)', subState(p2, hasScript), hasScript ? `${words || '?'} words` : hasNote(notes, 'script_started') ? 'Writing…' : '—')}
+      ${stepRow('Shorts cut', subState(p2, swords > 0 || hasNote(notes, 'shorts_done')), swords > 0 ? `${swords} words` : '—')}
       ${stepRow('PDF teleprompter', subState(p2, hasScript), hasScript ? 'Generated' : '—')}
-      ${stepRow('Generate images', subState(p2, hasImgs), hasImgs ? `${imgs} images` : '—')}
-      ${stepRow('Animate clips', subState(p2, hasClips), hasClips ? `${clips} clips` : hasImgs ? 'In progress…' : '—')}
-      ${stepRow('Silent preview', subState(p2, p2 === 'done'), p2 === 'done' ? 'Ready in Drive' : hasClips ? 'Rendering…' : '—')}
-      ${stepRow('VO drop zone', p2 === 'done' ? 'pending' : 'waiting', p2 === 'done' ? 'Waiting for your VO' : '—')}`;
+      ${stepRow('Generate images', subState(p2, hasImgs), hasImgs ? `${imgs || imgProgress} images` : imgProgress ? `${imgProgress}` : '—')}
+      ${stepRow('Animate clips', subState(p2, hasClips), hasClips ? `${clips || clipProgress} clips` : clipProgress ? `${clipProgress}` : hasImgs ? 'In progress…' : '—')}
+      ${stepRow('Silent preview', subState(p2, previewReady), previewReady ? 'Ready in Drive' : hasClips ? 'Rendering…' : hasNote(notes, 'preview_assembling') ? 'Assembling…' : '—')}
+      ${stepRow('VO drop zone', previewReady ? 'pending' : 'waiting', previewReady ? 'Waiting for your VO' : '—')}`;
 
   } else if (phase === '3') {
     title = 'Phase 3 — Assembly';
     const p3 = s.phase3 || 'idle';
-    const isDone = p3 === 'done';
+    const done = isDoneState(p3);
+    const notes = d3.progress_notes || [];
     const voSrc  = d3.vo_source === 'tts' ? 'AI voice (TTS)' : 'Your voice';
-    const cost   = d3.cost ? `$${parseFloat(d3.cost).toFixed(2)}` : '—';
+    const costVal = noteVal(notes, 'cost') || d3.cost;
+    const cost   = costVal ? `$${parseFloat(costVal.replace('$','')).toFixed(2)}` : '—';
+    const hasAudio = done || hasNote(notes, 'audio_done');
+    const hasCaptions = done || hasNote(notes, 'captions_done');
+    const assembled = done || hasNote(notes, 'assembled');
     html = `
-      ${stepRow('Voiceover source', subState(p3, isDone), isDone ? voSrc : '—')}
-      ${stepRow('Whisper captions', subState(p3, isDone), isDone ? 'Generated' : '—')}
-      ${stepRow('Sync + assemble', subState(p3, isDone), isDone ? 'Complete' : p3 === 'active' ? 'Assembling…' : '—')}
-      ${stepRow('Shorts assembly', subState(p3, isDone && d3.has_shorts), isDone && d3.has_shorts ? 'Complete' : '—')}
-      ${stepRow('Final video cost', subState(p3, isDone), cost)}`;
+      ${stepRow('Voiceover source', subState(p3, hasAudio), hasAudio ? voSrc : p3 === 'active' || p3 === 'running' ? 'Processing…' : '—')}
+      ${stepRow('Whisper captions', subState(p3, hasCaptions), hasCaptions ? 'Generated' : hasAudio ? 'Generating…' : '—')}
+      ${stepRow('Sync + assemble', subState(p3, assembled), assembled ? 'Complete' : hasCaptions ? 'Assembling…' : '—')}
+      ${stepRow('Shorts assembly', subState(p3, done), done ? 'Complete' : assembled ? 'Rendering…' : '—')}
+      ${stepRow('Final video cost', subState(p3, done), cost)}`;
 
   } else if (phase === 'pub') {
     title = 'Published';
