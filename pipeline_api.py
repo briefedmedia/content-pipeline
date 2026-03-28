@@ -117,22 +117,114 @@ def pipeline_history():
 
 
 # --- Rich status endpoint ---
+# Uses a short-lived cache to avoid hammering Google Sheets API
+_status_cache = {"data": None, "ts": 0}
+_STATUS_CACHE_TTL = 4  # seconds — stale after this, re-fetch
+
 @app.route("/status")
 def status():
-    import datetime as _dt
-    from sheets import get_todays_job
-    from approvals import load_approvals
+    import datetime as _dt, time as _time
+
+    # Return cached response if fresh enough
+    now_ts = _time.time()
+    if _status_cache["data"] and (now_ts - _status_cache["ts"]) < _STATUS_CACHE_TTL:
+        return jsonify(_status_cache["data"])
 
     today = _dt.date.today().isoformat()
-    approvals = load_approvals()
-    day = approvals.get(today, {})
-    job = get_todays_job("news") or {}
 
-    # Derive phase states from real data
-    p1 = job.get("phase1_status")
-    p2 = job.get("phase2_status")
-    p3 = job.get("phase3_status")
+    # ONE Sheets read for the main log — parse everything from it
+    rows = []
+    try:
+        from sheets import _get_sheet
+        rows = _get_sheet().get_all_values()
+    except Exception:
+        pass
 
+    # Parse job status, script/clips, and progress from single read
+    job = {}
+    p2_detail = {}
+    progress = {}
+    for row in rows:
+        if len(row) < 5:
+            continue
+        # log_job rows: [date, time, ACCOUNT, "Phase N", STATUS, note]
+        # save_todays_script rows: [timestamp, date, account, "script", json]
+        row_date = row[0] if len(row[0]) == 10 else (row[1][:10] if len(row) > 1 else "")
+        if row_date != today:
+            continue
+
+        key = row[3]
+        acct = row[2]
+
+        # Phase status rows (from log_job)
+        if ("Phase 1" in key or "phase1" in key) and acct.upper() == "NEWS":
+            st = row[4].lower()
+            job["phase1_status"] = st
+            job["phase1_time"] = row[0] if len(row[0]) > 10 else None
+            note = row[5] if len(row) > 5 else ""
+            phase_key = "phase1"
+            if phase_key not in progress:
+                progress[phase_key] = {"status": st, "notes": []}
+            progress[phase_key]["status"] = st
+            if note:
+                progress[phase_key]["notes"].append(note)
+
+        elif ("Phase 2" in key or "phase2" in key) and acct.upper() == "NEWS":
+            st = row[4].lower()
+            job["phase2_status"] = st
+            job["phase2_time"] = row[0] if len(row[0]) > 10 else None
+            note = row[5] if len(row) > 5 else ""
+            phase_key = "phase2"
+            if phase_key not in progress:
+                progress[phase_key] = {"status": st, "notes": []}
+            progress[phase_key]["status"] = st
+            if note:
+                progress[phase_key]["notes"].append(note)
+
+        elif ("Phase 3" in key or "phase3" in key) and acct.upper() == "NEWS":
+            st = row[4].lower()
+            job["phase3_status"] = st
+            job["phase3_time"] = row[0] if len(row[0]) > 10 else None
+            note = row[5] if len(row) > 5 else ""
+            job["phase3_note"] = note
+            phase_key = "phase3"
+            if phase_key not in progress:
+                progress[phase_key] = {"status": st, "notes": []}
+            progress[phase_key]["status"] = st
+            if note:
+                progress[phase_key]["notes"].append(note)
+
+        # Script row (from save_todays_script): [timestamp, date, account, "script", json]
+        elif key == "script" and acct.lower() == "news":
+            try:
+                sd = json.loads(row[4])
+                p2_detail["word_count"]       = sd.get("word_count", 0)
+                p2_detail["shorts_word_count"] = sd.get("shorts_word_count", 0)
+                p2_detail["slug"]             = sd.get("slug", "")
+                p2_detail["title"]            = sd.get("title", "")
+                p2_detail["script_status"]    = "done"
+            except Exception:
+                pass
+
+        # Clips row (from save_todays_clips): [timestamp, date, account, "clips", json]
+        elif key == "clips" and acct.lower() == "news":
+            try:
+                clips = json.loads(row[4])
+                p2_detail["image_count"]  = len(clips)
+                p2_detail["clip_count"]   = len(clips)
+                p2_detail["clips_status"] = "done"
+            except Exception:
+                pass
+
+    # ONE approval read
+    day = {}
+    try:
+        from sheets import load_approvals_for_date
+        day = load_approvals_for_date(today)
+    except Exception:
+        pass
+
+    # Phase states
     def phase_state(status_val):
         if not status_val:                      return "idle"
         if status_val == "success":             return "done"
@@ -140,64 +232,35 @@ def status():
         if status_val == "running":             return "active"
         return "idle"
 
-    # Phase 1 detail — read from local candidates file or Drive
+    p1 = job.get("phase1_status")
+    p2 = job.get("phase2_status")
+    p3 = job.get("phase3_status")
+
+    # Phase 1 detail — candidates count (try local, then Drive — cached separately)
     p1_detail = {}
     try:
-        candidates = []
         cpath = os.path.join(TMP, today, f"candidates_{today}.json")
         if os.path.exists(cpath):
             with open(cpath) as f:
                 cdata = json.load(f)
-            candidates = cdata.get("candidates", [])
+            ccount = len(cdata.get("candidates", []))
         else:
             from drive import read_candidates_from_drive
-            candidates = read_candidates_from_drive(today)
-        if candidates:
-            p1_detail = {
-                "stories_found":     len(candidates),
-                "sources_checked":   10,
-                "headlines_fetched": 70,
-            }
+            ccount = len(read_candidates_from_drive(today))
+        if ccount:
+            p1_detail = {"stories_found": ccount, "sources_checked": 10, "headlines_fetched": 70}
     except Exception:
         pass
 
-    # Phase 2 detail — read from sheets script/clip records
-    p2_detail = {}
-    try:
-        from sheets import _get_sheet
-        import json as _json
-        sheet = _get_sheet()
-        rows  = sheet.get_all_values()
-        for row in reversed(rows):
-            if len(row) >= 5 and row[1] == today and row[2] == "news":
-                if row[3] == "script":
-                    sd = _json.loads(row[4])
-                    p2_detail["word_count"]        = sd.get("word_count", 0)
-                    p2_detail["shorts_word_count"]  = sd.get("shorts_word_count", 0)
-                    p2_detail["slug"]               = sd.get("slug", "")
-                    p2_detail["title"]              = sd.get("title", "")
-                    p2_detail["script_status"]      = "done"
-                    break
-        for row in reversed(rows):
-            if len(row) >= 5 and row[1] == today and row[2] == "news":
-                if row[3] == "clips":
-                    clips = _json.loads(row[4])
-                    p2_detail["image_count"]  = len(clips)
-                    p2_detail["clip_count"]   = len(clips)
-                    p2_detail["clips_status"] = "done"
-                    break
-    except Exception:
-        pass
-
-    # Phase 3 detail — from job record
+    # Phase 3 detail
     p3_detail = {}
     try:
         note = job.get("phase3_note", "")
         if "cost=" in note:
             p3_detail["cost"] = note.split("cost=")[1].split()[0]
-        p3_detail["vo_source"]  = "human" if job.get("trigger") != "cron_fallback" else "tts"
+        p3_detail["vo_source"] = "human" if job.get("trigger") != "cron_fallback" else "tts"
         p3_detail["has_shorts"] = True
-        p3_detail["captioned"]  = True
+        p3_detail["captioned"] = True
     except Exception:
         pass
 
@@ -211,39 +274,28 @@ def status():
     except Exception:
         pass
 
-    # Granular progress from log rows
-    try:
-        from sheets import get_phase_progress
-        progress = get_phase_progress("news", today)
-    except Exception:
-        progress = {}
-
-    # Enrich detail objects with granular progress notes
+    # Attach progress notes to detail objects
     for phase_key, detail_obj in [("phase1", p1_detail), ("phase2", p2_detail), ("phase3", p3_detail)]:
         if phase_key in progress:
             detail_obj["progress_notes"] = progress[phase_key].get("notes", [])
 
-    return jsonify({
+    result = {
         "pipeline":       "running",
         "today":          today,
 
-        # Phase states — prefer granular progress over job-level status
         "phase1":         progress.get("phase1", {}).get("status") or phase_state(p1),
         "phase2":         progress.get("phase2", {}).get("status") or phase_state(p2),
         "phase3":         progress.get("phase3", {}).get("status") or phase_state(p3),
         "published":      bool(published_detail),
 
-        # Timestamps from job
         "phase1_time":    job.get("phase1_time"),
         "phase2_time":    job.get("phase2_time"),
         "phase3_time":    job.get("phase3_time"),
 
-        # Approval state
         "approved_count": len(day.get("approved", [])),
         "declined_count": len(day.get("declined", [])),
         "auto_cancelled": day.get("auto_cancelled", False),
 
-        # Phase detail objects (now include progress_notes)
         "phase1_detail":  p1_detail,
         "phase2_detail":  p2_detail,
         "phase3_detail":  p3_detail,
@@ -251,7 +303,12 @@ def status():
 
         # Errors
         "errors": []
-    })
+    }
+
+    # Cache result
+    _status_cache["data"] = result
+    _status_cache["ts"] = now_ts
+    return jsonify(result)
 
 
 @app.route("/pipeline/costs")
