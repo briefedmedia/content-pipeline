@@ -214,6 +214,7 @@ def run_phase3(account_type="history", trigger="cron", slug=None, force_assemble
         log_cost(p3_summary)
         job.update({"title": script_data["title"], "status": "success",
                     "duration": outputs["duration"],
+                    "cost": p3_summary.get("total", 0),
                     "clean_drive_id": outputs["clean"]["drive_id"],
                     "captioned_drive_id": outputs["captioned"]["drive_id"]})
         send_notification(
@@ -227,7 +228,7 @@ def run_phase3(account_type="history", trigger="cron", slug=None, force_assemble
     finally:
         log_job(account_type, "3", status=job.get("status", "error"),
                 note=job.get("error", "")[:200] if job.get("status") == "error" else
-                     f"cost=${job.get('duration', 0)}")
+                     f"cost=${job.get('cost', 0):.4f} duration={job.get('duration', 0):.0f}s")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
