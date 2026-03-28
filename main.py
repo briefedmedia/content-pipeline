@@ -113,12 +113,14 @@ def run_phase2_for_story(date, story_index, account_type="news"):
     tracker.slug     = slug
     tracker.date     = slug[:10]
     log_job(account_type, "2", status="running", note=f"script_done words={script_data.get('word_count', 0)}")
+    save_todays_script(script_data, account_type)
 
     style       = "history_old" if account_type == "history" else "news"
     image_paths = run_image_generation(script_data, style, tracker=tracker)
     # images.py already logs per-image progress
     clip_paths  = run_clip_generation(image_paths, account_type, tracker=tracker)
     # clips.py already logs per-clip progress
+    save_todays_clips(clip_paths, account_type)
 
     log_job(account_type, "2", status="running", note="preview_assembling")
     preview_path = assemble_silent_preview(clip_paths, script_data["title"], slug)
@@ -219,9 +221,13 @@ def run_phase3(account_type="history", trigger="cron", slug=None, force_assemble
             message=f"Duration: {outputs['duration']:.0f}s\nScheduled to post at next optimal time.",
             priority="normal")
     except Exception:
-        job.update({"status": "error", "error": traceback.format_exc()})
+        error_tb = traceback.format_exc()
+        job.update({"status": "error", "error": error_tb})
+        print(f"  Phase 3 error: {error_tb}")
     finally:
-        log_job(account_type, "3", status=job.get("status", "error"))
+        log_job(account_type, "3", status=job.get("status", "error"),
+                note=job.get("error", "")[:200] if job.get("status") == "error" else
+                     f"cost=${job.get('duration', 0)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
